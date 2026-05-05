@@ -132,9 +132,14 @@ export default function MarketAnalysisPage() {
                 onChange={(e) => setSymbol(e.target.value)}
                 className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-bold"
               >
-                {coinList.map((c) => (
-                  <option key={c} value={c}>{c}/USDT</option>
-                ))}
+                {coinList.map((c) => {
+                  const ok = isOnBinance(c);
+                  return (
+                    <option key={c} value={c} disabled={!ok}>
+                      {c}/USDT{ok ? '' : ' (Binance 미상장)'}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
