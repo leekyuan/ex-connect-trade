@@ -34,23 +34,13 @@ export default function MarketAnalysisPage() {
   const [symbol, setSymbol] = useState(initialSymbol);
   const { coins: cmcCoins } = useCoinMarketCap(60_000);
   const { symbols: binanceSymbols, ready: binanceReady } = useBinanceSymbols();
+  // CMC TOP 30 전부 노출 (Binance 미상장은 회색 표시)
   const coinList = useMemo(() => {
     const top = cmcCoins.slice(0, 30).map(c => c.symbol);
-    // Binance USDT 현물에 실제 존재하는 심볼만 (캐시 준비 전엔 통과)
-    const filtered = binanceReady && binanceSymbols.size > 0
-      ? top.filter(s => binanceSymbols.has(s))
-      : top;
-    return filtered.length ? filtered : FALLBACK_COINS;
-  }, [cmcCoins, binanceSymbols, binanceReady]);
-
-  // 현재 선택 심볼이 Binance에 없으면 첫 유효 심볼로 자동 교체
-  useEffect(() => {
-    if (!binanceReady || binanceSymbols.size === 0) return;
-    if (!binanceSymbols.has(symbol) && coinList.length > 0) {
-      setSymbol(coinList[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [binanceReady, binanceSymbols, coinList]);
+    return top.length ? top : FALLBACK_COINS;
+  }, [cmcCoins]);
+  const isOnBinance = (s: string) =>
+    !binanceReady || binanceSymbols.size === 0 || binanceSymbols.has(s);
 
   // sync url ↔ state
   useEffect(() => {
@@ -142,9 +132,14 @@ export default function MarketAnalysisPage() {
                 onChange={(e) => setSymbol(e.target.value)}
                 className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-bold"
               >
-                {coinList.map((c) => (
-                  <option key={c} value={c}>{c}/USDT</option>
-                ))}
+                {coinList.map((c) => {
+                  const ok = isOnBinance(c);
+                  return (
+                    <option key={c} value={c} disabled={!ok}>
+                      {c}/USDT{ok ? '' : ' (Binance 미상장)'}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
