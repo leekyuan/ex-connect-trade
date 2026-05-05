@@ -1,0 +1,129 @@
+import {
+  BarChart3,
+  LayoutDashboard,
+  Settings,
+  LineChart,
+  FlaskConical,
+  PieChart,
+  Bell,
+  TrendingUp,
+} from "lucide-react";
+import { NavLink } from "@/components/NavLink";
+import { useLocation } from "react-router-dom";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { useUnreadAlerts } from "@/hooks/useUnreadAlerts";
+
+const mainItems = [
+  { title: "대시보드", url: "/dashboard", icon: LayoutDashboard },
+  { title: "마켓 스크리너", url: "/market-screener", icon: TrendingUp },
+  { title: "시장 분석", url: "/market-analysis", icon: LineChart },
+  { title: "백테스트", url: "/backtest", icon: FlaskConical },
+  { title: "포트폴리오", url: "/portfolio", icon: PieChart },
+  { title: "알림 센터", url: "/alerts", icon: Bell, badgeKey: "alerts" as const },
+];
+
+const settingsItems = [
+  { title: "설정", url: "/settings", icon: Settings },
+];
+
+export function AppSidebar() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const location = useLocation();
+  const unread = useUnreadAlerts();
+
+  const isActive = (path: string) =>
+    path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <BarChart3 className="h-4 w-4 text-primary-foreground" />
+          </div>
+          {!collapsed && (
+            <div>
+              <h1 className="text-sm font-bold text-sidebar-foreground tracking-tight">
+                CryptoEdge AI
+              </h1>
+              <p className="text-[10px] text-muted-foreground">Signal Terminal</p>
+            </div>
+          )}
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>메인</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainItems.map((item) => {
+                const showBadge = (item as any).badgeKey === 'alerts' && unread > 0;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <NavLink
+                        to={item.url}
+                        className="hover:bg-sidebar-accent/50 relative"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                        {showBadge && (
+                          <span className={`${collapsed ? 'absolute top-1 right-1' : 'ml-auto'} bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center`}>
+                            {unread > 99 ? '99+' : unread}
+                          </span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>설정</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {settingsItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink
+                      to={item.url}
+                      className="hover:bg-sidebar-accent/50"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border p-3">
+        {!collapsed && (
+          <span className="text-[10px] text-muted-foreground font-mono">v1.0 · Guest Mode</span>
+        )}
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
