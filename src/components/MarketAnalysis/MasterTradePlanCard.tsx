@@ -71,8 +71,8 @@ export function MasterTradePlanCard({ plan, symbol, currentPrice }: Props) {
               <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1">
                 익절 (Take Profit) <span className="text-muted-foreground font-normal normal-case">R:R {plan.rrTp1}/{plan.rrTp2}</span>
               </div>
-              <Row label="1차 익절" value={plan.tp1} sub={`${plan.positionPlan.tp1ClosePct}% 청산`} ref={currentPrice} pct={pctFromPrice(plan.tp1, currentPrice)} accent="text-emerald-400" />
-              <Row label="2차 익절" value={plan.tp2} sub={`${plan.positionPlan.tp2ClosePct}% 청산`} ref={currentPrice} pct={pctFromPrice(plan.tp2, currentPrice)} accent="text-emerald-400" />
+              <Row label="1차 익절" value={plan.tp1} sub={`${plan.positionPlan.tp1ClosePct}% 청산`} refPrice={currentPrice} pct={pctFromPrice(plan.tp1, currentPrice)} accent="text-emerald-400" />
+              <Row label="2차 익절" value={plan.tp2} sub={`${plan.positionPlan.tp2ClosePct}% 청산`} refPrice={currentPrice} pct={pctFromPrice(plan.tp2, currentPrice)} accent="text-emerald-400" />
             </div>
 
             {/* 손절 */}
@@ -81,8 +81,8 @@ export function MasterTradePlanCard({ plan, symbol, currentPrice }: Props) {
                 <Shield className="h-3 w-3" /> 손절 (Stop Loss) — 단계적
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Row label="1차 손절" value={plan.sl1} sub={`${plan.positionPlan.sl1ClosePct}% 컷 · 시나리오 재평가`} ref={currentPrice} pct={pctFromPrice(plan.sl1, currentPrice)} accent="text-red-400" />
-                <Row label="2차 손절" value={plan.sl2} sub={`${plan.positionPlan.sl2ClosePct}% 전량 청산`} ref={currentPrice} pct={pctFromPrice(plan.sl2, currentPrice)} accent="text-red-400" />
+                <Row label="1차 손절" value={plan.sl1} sub={`${plan.positionPlan.sl1ClosePct}% 컷 · 시나리오 재평가`} refPrice={currentPrice} pct={pctFromPrice(plan.sl1, currentPrice)} accent="text-red-400" />
+                <Row label="2차 손절" value={plan.sl2} sub={`${plan.positionPlan.sl2ClosePct}% 전량 청산`} refPrice={currentPrice} pct={pctFromPrice(plan.sl2, currentPrice)} accent="text-red-400" />
               </div>
             </div>
           </div>
