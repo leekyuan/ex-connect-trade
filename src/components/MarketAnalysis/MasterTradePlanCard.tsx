@@ -62,8 +62,8 @@ export function MasterTradePlanCard({ plan, symbol, currentPrice }: Props) {
             {/* 진입 */}
             <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-2.5 space-y-1.5">
               <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">진입 (Entry)</div>
-              <Row label="1차 진입" value={plan.entry1} sub={`${plan.positionPlan.entry1Pct}% 비중`} ref={currentPrice} pct={pctFromPrice(plan.entry1, currentPrice)} />
-              <Row label="2차 진입" value={plan.entry2} sub={`${plan.positionPlan.entry2Pct}% 비중`} ref={currentPrice} pct={pctFromPrice(plan.entry2, currentPrice)} />
+              <Row label="1차 진입" value={plan.entry1} sub={`${plan.positionPlan.entry1Pct}% 비중`} refPrice={currentPrice} pct={pctFromPrice(plan.entry1, currentPrice)} />
+              <Row label="2차 진입" value={plan.entry2} sub={`${plan.positionPlan.entry2Pct}% 비중`} refPrice={currentPrice} pct={pctFromPrice(plan.entry2, currentPrice)} />
             </div>
 
             {/* 익절 */}
