@@ -102,7 +102,7 @@ export function MasterTradePlanCard({ plan, symbol, currentPrice }: Props) {
   );
 }
 
-function Row({ label, value, sub, ref, pct, accent }: { label: string; value: number; sub: string; ref: number; pct?: string; accent?: string }) {
+function Row({ label, value, sub, refPrice, pct, accent }: { label: string; value: number; sub: string; refPrice: number; pct?: string; accent?: string }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="min-w-0">
@@ -110,7 +110,7 @@ function Row({ label, value, sub, ref, pct, accent }: { label: string; value: nu
         <div className="text-[9px] text-muted-foreground/70">{sub}</div>
       </div>
       <div className="text-right">
-        <div className={`text-sm font-mono font-bold ${accent ?? 'text-foreground'}`}>{fmtPrice(value, ref)}</div>
+        <div className={`text-sm font-mono font-bold ${accent ?? 'text-foreground'}`}>{fmtPrice(value, refPrice)}</div>
         {pct && <div className="text-[9px] font-mono text-muted-foreground">{pct}</div>}
       </div>
     </div>
