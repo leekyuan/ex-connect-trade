@@ -31,6 +31,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import MultiExchangeBalancePanel from "@/components/Portfolio/MultiExchangeBalancePanel";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus,
