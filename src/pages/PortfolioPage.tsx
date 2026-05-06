@@ -411,6 +411,17 @@ export default function PortfolioPage() {
           </div>
         </div>
 
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">📊 거래 분석</TabsTrigger>
+            <TabsTrigger value="balances">💰 거래소 잔고</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="balances">
+            <MultiExchangeBalancePanel />
+          </TabsContent>
+
+          <TabsContent value="overview" className="space-y-5">
         {/* Range filter */}
         <div className="flex gap-1.5">
           {(["1W", "1M", "3M", "ALL"] as RangeFilter[]).map(r => (
