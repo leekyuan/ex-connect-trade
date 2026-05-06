@@ -121,20 +121,30 @@ export default function AlertsPage() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     let mounted = true;
     const load = async () => {
-      const { data } = await supabase
-        .from("price_alerts")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (mounted) {
-        setAlerts((data as PriceAlert[]) ?? []);
-        setLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from("price_alerts")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        if (mounted) setAlerts((data as PriceAlert[]) ?? []);
+      } catch (err: any) {
+        console.error("[AlertsPage] price_alerts 로드 실패:", err);
+        if (mounted) toast.error("알림 로드 실패: " + (err?.message || "unknown"));
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
-    load();
+    // 5초 타임아웃 — 무한 스피너 방지
+    const timeout = setTimeout(() => { if (mounted) setLoading(false); }, 5000);
+    load().finally(() => clearTimeout(timeout));
     const channel = supabase
       .channel(`price-alerts-${user.id}`)
       .on(

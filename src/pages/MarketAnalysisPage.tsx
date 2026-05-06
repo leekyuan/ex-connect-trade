@@ -5,7 +5,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useCoinMarketCap } from '@/hooks/useCoinMarketCap';
 import { useBinanceSymbols } from '@/hooks/useBinanceSymbols';
 import { UnifiedSignalPanel } from '@/components/MarketAnalysis/UnifiedSignalPanel';
-import { MarketTradingViewChart } from '@/components/MarketAnalysis/MarketTradingViewChart';
+import SmartTradingViewChart from '@/components/chart/SmartTradingViewChart';
 import { NeoWaveChart } from '@/components/MarketAnalysis/NeoWaveChart';
 import { NeoWaveScenarioPanel } from '@/components/MarketAnalysis/NeoWaveScenarioPanel';
 import { HarmonicPatternPanel } from '@/components/MarketAnalysis/HarmonicPatternPanel';
@@ -292,8 +292,13 @@ export default function MarketAnalysisPage() {
                 />
               )
             ) : (
-              <div className="rounded-xl border border-border bg-card overflow-hidden h-[560px]">
-                <MarketTradingViewChart tvSymbol={tvSymbol} tvInterval={activeTf.tv} height={560} />
+              <div className="overflow-hidden">
+                <SmartTradingViewChart
+                  baseSymbol={symbol}
+                  interval={activeTf.tv}
+                  isFutures
+                  height={560}
+                />
               </div>
             )}
           </div>
