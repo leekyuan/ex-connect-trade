@@ -1,6 +1,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TelegramSettings } from "@/components/Settings/TelegramSettings";
 import { BinanceApiSettings } from "@/components/Settings/BinanceApiSettings";
+import ExchangeSettings from "@/components/settings/ExchangeSettings";
 import { StrategyConfidenceSettings } from "@/components/Settings/StrategyConfidenceSettings";
 import { TheoryWeightsSettings } from "@/components/Settings/TheoryWeightsSettings";
 import { PushNotificationSettings } from "@/components/Settings/PushNotificationSettings";
@@ -15,6 +16,7 @@ export default function SettingsPage() {
             알림, 거래소 연동, 전략 환경설정을 관리하세요.
           </p>
         </div>
+        <ExchangeSettings />
         <BinanceApiSettings />
         <TheoryWeightsSettings />
         <PushNotificationSettings />
