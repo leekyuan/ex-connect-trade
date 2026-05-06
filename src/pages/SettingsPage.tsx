@@ -16,7 +16,6 @@ export default function SettingsPage() {
           </p>
         </div>
         <ExchangeSettings />
-        <BinanceApiSettings />
         <TheoryWeightsSettings />
         <PushNotificationSettings />
         <TelegramSettings />
