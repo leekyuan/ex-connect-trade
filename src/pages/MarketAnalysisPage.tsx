@@ -135,8 +135,8 @@ export default function MarketAnalysisPage() {
                 {coinList.map((c) => {
                   const ok = isOnBinance(c);
                   return (
-                    <option key={c} value={c} disabled={!ok}>
-                      {c}/USDT{ok ? '' : ' (Binance 미상장)'}
+                    <option key={c} value={c}>
+                      {c}/USDT{ok ? '' : ' (미상장 → 자동 폴백)'}
                     </option>
                   );
                 })}

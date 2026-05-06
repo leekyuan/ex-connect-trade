@@ -1,6 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TelegramSettings } from "@/components/Settings/TelegramSettings";
-import { BinanceApiSettings } from "@/components/Settings/BinanceApiSettings";
 import ExchangeSettings from "@/components/settings/ExchangeSettings";
 import { StrategyConfidenceSettings } from "@/components/Settings/StrategyConfidenceSettings";
 import { TheoryWeightsSettings } from "@/components/Settings/TheoryWeightsSettings";
@@ -17,7 +16,6 @@ export default function SettingsPage() {
           </p>
         </div>
         <ExchangeSettings />
-        <BinanceApiSettings />
         <TheoryWeightsSettings />
         <PushNotificationSettings />
         <TelegramSettings />
