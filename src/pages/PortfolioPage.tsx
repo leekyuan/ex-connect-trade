@@ -625,6 +625,8 @@ export default function PortfolioPage() {
             </table>
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
