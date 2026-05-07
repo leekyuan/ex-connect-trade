@@ -15,32 +15,39 @@ export interface CoinTheorySignals {
   harmonic: { dir: Dir; confidence: number };
   neely: { dir: Dir; confidence: number };
   fractal: { dir: Dir; confidence: number };
-  /** 5개 중 LONG/SHORT 다수결 */
   consensus: Dir;
   longCount: number;
   shortCount: number;
+  exchange: ExchangeId;
+  fallback: boolean;
+  /** 캔들 부족 또는 모든 거래소 실패 */
+  status?: 'ok' | 'low_data' | 'failed';
 }
 
 const cache = new Map<string, { ts: number; data: CoinTheorySignals }>();
 const TTL = 60_000;
 
-async function fetchKlines(sym: string): Promise<Candle[]> {
-  const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}USDT&interval=1h&limit=120`);
-  if (!r.ok) throw new Error('klines');
-  const raw: any[] = await r.json();
-  return raw.map(c => ({
-    time: c[0], open: +c[1], high: +c[2], low: +c[3], close: +c[4], volume: +c[5],
-  }));
-}
-
 function toDir(s: 'LONG' | 'SHORT' | 'WATCH'): Dir { return s; }
 
-async function computeFor(sym: string): Promise<CoinTheorySignals | null> {
-  const cached = cache.get(sym);
+async function computeFor(sym: string, tf = '1h'): Promise<CoinTheorySignals | null> {
+  const ck = `${sym}-${tf}`;
+  const cached = cache.get(ck);
   if (cached && Date.now() - cached.ts < TTL) return cached.data;
   try {
-    const candles = await fetchKlines(sym);
-    if (candles.length < 30) return null;
+    const { candles, exchange, fallback } = await fetchKlinesFallback(sym, tf, 200);
+    if (candles.length < 50) {
+      const data: CoinTheorySignals = {
+        ict: { dir: 'WATCH', confidence: 0 },
+        wyckoff: { dir: 'WATCH', confidence: 0 },
+        harmonic: { dir: 'WATCH', confidence: 0 },
+        neely: { dir: 'WATCH', confidence: 0 },
+        fractal: { dir: 'WATCH', confidence: 0 },
+        consensus: 'WATCH', longCount: 0, shortCount: 0,
+        exchange, fallback, status: 'low_data',
+      };
+      cache.set(ck, { ts: Date.now(), data });
+      return data;
+    }
     const price = candles[candles.length - 1].close;
     const ict = analyzeICT(candles, price);
     const wy = analyzeWyckoff(candles, price);
@@ -61,11 +68,21 @@ async function computeFor(sym: string): Promise<CoinTheorySignals | null> {
       neely: { dir: toDir(ne.signal), confidence: ne.confidence },
       fractal: { dir: toDir(fr.signal), confidence: fr.confidence },
       consensus, longCount, shortCount,
+      exchange, fallback, status: 'ok',
     };
-    cache.set(sym, { ts: Date.now(), data });
+    cache.set(ck, { ts: Date.now(), data });
     return data;
   } catch {
-    return null;
+    const data: CoinTheorySignals = {
+      ict: { dir: 'WATCH', confidence: 0 },
+      wyckoff: { dir: 'WATCH', confidence: 0 },
+      harmonic: { dir: 'WATCH', confidence: 0 },
+      neely: { dir: 'WATCH', confidence: 0 },
+      fractal: { dir: 'WATCH', confidence: 0 },
+      consensus: 'WATCH', longCount: 0, shortCount: 0,
+      exchange: 'BINANCE', fallback: false, status: 'failed',
+    };
+    return data;
   }
 }
 
