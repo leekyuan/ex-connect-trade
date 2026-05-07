@@ -76,14 +76,11 @@ export interface MultiTfSignal {
 }
 
 async function fetchCandles(symbol: string, interval: string, limit = 300): Promise<Candle[]> {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=${interval}&limit=${limit}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  const data: any[] = await r.json();
-  return data.map(k => ({
-    time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-  }));
+  const { fetchKlinesFallback } = await import('@/lib/multiExchangeKlines');
+  const { candles } = await fetchKlinesFallback(symbol, interval, limit);
+  return candles;
 }
+
 
 function labelFromScore(s: number): UnifiedLabel {
   if (s >= 75) return 'STRONG_BUY';
