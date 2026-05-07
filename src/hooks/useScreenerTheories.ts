@@ -86,7 +86,7 @@ async function computeFor(sym: string, tf = '1h'): Promise<CoinTheorySignals | n
   }
 }
 
-export function useScreenerTheories(symbols: string[], refreshMs = 60_000) {
+export function useScreenerTheories(symbols: string[], refreshMs = 60_000, tf = '1h') {
   const [data, setData] = useState<Record<string, CoinTheorySignals | null>>({});
   const [progress, setProgress] = useState(0);
 
@@ -95,21 +95,28 @@ export function useScreenerTheories(symbols: string[], refreshMs = 60_000) {
     let cancelled = false;
     async function run() {
       setProgress(0);
-      for (let i = 0; i < symbols.length; i++) {
+      // 5개씩 병렬 배치 처리
+      const batchSize = 5;
+      let done = 0;
+      for (let i = 0; i < symbols.length; i += batchSize) {
         if (cancelled) return;
-        const sym = symbols[i];
-        const r = await computeFor(sym);
+        const batch = symbols.slice(i, i + batchSize);
+        const results = await Promise.all(batch.map(s => computeFor(s, tf)));
         if (cancelled) return;
-        setData(prev => ({ ...prev, [sym]: r }));
-        setProgress(i + 1);
-        await new Promise(res => setTimeout(res, 120));
+        const upd: Record<string, CoinTheorySignals | null> = {};
+        batch.forEach((s, idx) => { upd[s] = results[idx]; });
+        setData(prev => ({ ...prev, ...upd }));
+        done += batch.length;
+        setProgress(done);
+        await new Promise(res => setTimeout(res, 200));
       }
     }
     run();
     const id = setInterval(run, refreshMs);
     return () => { cancelled = true; clearInterval(id); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbols.join(','), refreshMs]);
+  }, [symbols.join(','), refreshMs, tf]);
 
   return { data, progress, total: symbols.length };
 }
+
