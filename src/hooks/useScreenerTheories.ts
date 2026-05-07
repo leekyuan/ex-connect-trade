@@ -5,6 +5,7 @@ import { analyzeWyckoff } from '@/utils/theories/wyckoff';
 import { analyzeHarmonic } from '@/utils/theories/harmonic';
 import { analyzeNeely } from '@/utils/theories/neely';
 import { analyzeFractal } from '@/utils/theories/fractal';
+import { fetchKlinesFallback, type ExchangeId } from '@/lib/multiExchangeKlines';
 
 export type Dir = 'LONG' | 'SHORT' | 'WATCH';
 
