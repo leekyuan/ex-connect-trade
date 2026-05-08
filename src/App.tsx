@@ -20,6 +20,8 @@ import SettingsPage from "./pages/SettingsPage.tsx";
 import AccuracyPage from "./pages/AccuracyPage.tsx";
 import RulesPage from "./pages/RulesPage.tsx";
 import JournalPage from "./pages/JournalPage.tsx";
+import PositionCalculatorPage from "./pages/PositionCalculatorPage.tsx";
+import CorrelationPage from "./pages/CorrelationPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +52,8 @@ const App = () => (
               <Route path="/accuracy" element={<AccuracyPage />} />
               <Route path="/rules" element={<RulesPage />} />
               <Route path="/journal" element={<JournalPage />} />
+              <Route path="/calculator" element={<PositionCalculatorPage />} />
+              <Route path="/correlation" element={<CorrelationPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               {/* Legacy redirects */}
               <Route path="/auth" element={<Navigate to="/dashboard" replace />} />

@@ -7,6 +7,8 @@ import {
   PieChart,
   Bell,
   TrendingUp,
+  Calculator,
+  Network,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -30,6 +32,8 @@ const mainItems = [
   { title: "마켓 스크리너", url: "/market-screener", icon: TrendingUp },
   { title: "시장 분석", url: "/market-analysis", icon: LineChart },
   { title: "백테스트", url: "/backtest", icon: FlaskConical },
+  { title: "포지션 계산기", url: "/calculator", icon: Calculator },
+  { title: "상관관계", url: "/correlation", icon: Network },
   { title: "포트폴리오", url: "/portfolio", icon: PieChart },
   { title: "알림 센터", url: "/alerts", icon: Bell, badgeKey: "alerts" as const },
 ];
