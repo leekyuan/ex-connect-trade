@@ -20,6 +20,7 @@ import {
   type Period,
 } from '@/utils/profitFirstBacktest';
 import { toast } from 'sonner';
+import { BacktestWarnings } from '@/components/Backtest/BacktestWarnings';
 
 const FALLBACK_COIN_LIST = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'DOT', 'TRX', 'TON'];
 const PERIODS: { label: string; value: Period }[] = [
@@ -258,6 +259,16 @@ export default function BacktestPage() {
 
           {result && (
             <div className="space-y-5">
+              <BacktestWarnings result={{
+                totalTrades: result.metrics.totalTrades,
+                winRate: result.metrics.winRatePct / 100,
+                profitFactor: result.metrics.profitFactor,
+                alpha: result.metrics.totalReturnPct - result.metrics.buyHoldReturnPct,
+                inSampleReturn: result.walkForward[0]?.totalReturnPct ?? 0,
+                outOfSampleReturn: result.walkForward[1]?.totalReturnPct ?? 0,
+                mdd: result.metrics.maxDrawdownPct,
+                sharpe: result.metrics.sharpe,
+              }} />
               {/* Headline */}
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-lg border border-border bg-background p-4">
