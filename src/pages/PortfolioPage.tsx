@@ -98,17 +98,36 @@ export default function PortfolioPage() {
   const [leverage, setLeverage] = useState("1");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      // No auth: skip loading, show demo CTA
+      setLoading(false);
+      return;
+    }
     let mounted = true;
-    const load = async () => {
-      const { data } = await supabase
-        .from("portfolio_trades")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("entry_at", { ascending: false });
-      if (mounted) {
-        setDbTrades((data as PortfolioTrade[]) ?? []);
+    const timeoutId = setTimeout(() => {
+      if (mounted && loading) {
         setLoading(false);
+        toast.error("로딩이 10초를 초과했습니다. 데모 데이터를 표시합니다.");
+        setDemoTrades(generateDemoTrades(20));
+      }
+    }, 10_000);
+    const load = async () => {
+      try {
+        const { data } = await supabase
+          .from("portfolio_trades")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("entry_at", { ascending: false });
+        if (mounted) {
+          setDbTrades((data as PortfolioTrade[]) ?? []);
+          setLoading(false);
+          clearTimeout(timeoutId);
+        }
+      } catch (e) {
+        if (mounted) {
+          setLoading(false);
+          clearTimeout(timeoutId);
+        }
       }
     };
     load();
@@ -122,8 +141,10 @@ export default function PortfolioPage() {
       .subscribe();
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Demo mode shows demo trades, otherwise DB
