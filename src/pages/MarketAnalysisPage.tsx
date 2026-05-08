@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Waves, BarChart3 } from 'lucide-react';
+import { Loader2, Waves, BarChart3, CandlestickChart } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useCoinMarketCap } from '@/hooks/useCoinMarketCap';
 import { useBinanceSymbols } from '@/hooks/useBinanceSymbols';
 import { UnifiedSignalPanel } from '@/components/MarketAnalysis/UnifiedSignalPanel';
 import SmartTradingViewChart from '@/components/chart/SmartTradingViewChart';
+import { CustomLightweightChart } from '@/components/MarketAnalysis/CustomLightweightChart';
 import { NeoWaveChart } from '@/components/MarketAnalysis/NeoWaveChart';
 import { NeoWaveScenarioPanel } from '@/components/MarketAnalysis/NeoWaveScenarioPanel';
 import { HarmonicPatternPanel } from '@/components/MarketAnalysis/HarmonicPatternPanel';
@@ -26,7 +27,7 @@ import { analyzeWyckoff } from '@/utils/theories/wyckoff';
 import type { NeoWaveScenario } from '@/utils/theories/neely';
 
 const FALLBACK_COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'DOT', 'TRX', 'TON'];
-type ChartView = 'neowave' | 'tv';
+type ChartView = 'neowave' | 'tv' | 'custom';
 
 export default function MarketAnalysisPage() {
   const [params, setParams] = useSearchParams();
@@ -270,6 +271,16 @@ export default function MarketAnalysisPage() {
           >
             <BarChart3 className="h-3.5 w-3.5" /> TradingView (지표 자유 추가)
           </button>
+          <button
+            onClick={() => setChartView('custom')}
+            className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
+              chartView === 'custom'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'bg-muted text-muted-foreground hover:bg-muted/70'
+            }`}
+          >
+            <CandlestickChart className="h-3.5 w-3.5" /> Custom Chart (멀티거래소)
+          </button>
           {chartView === 'neowave' && neo.live && (
             <span className="ml-auto text-[10px] text-emerald-400 flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -291,7 +302,7 @@ export default function MarketAnalysisPage() {
                   height={560}
                 />
               )
-            ) : (
+            ) : chartView === 'tv' ? (
               <div className="overflow-hidden">
                 <SmartTradingViewChart
                   baseSymbol={symbol}
@@ -300,6 +311,12 @@ export default function MarketAnalysisPage() {
                   height={560}
                 />
               </div>
+            ) : (
+              <CustomLightweightChart
+                symbol={symbol}
+                interval={activeTf.binance}
+                height={560}
+              />
             )}
           </div>
 
