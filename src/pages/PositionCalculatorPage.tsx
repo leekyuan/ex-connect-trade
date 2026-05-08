@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Calculator, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calculator, AlertTriangle, TrendingUp, TrendingDown, Sparkles, Send } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { sendTelegram } from '@/lib/telegram';
+import { useTelegramSettings } from '@/hooks/useTelegramSettings';
+import { toast } from 'sonner';
 
 type Side = 'LONG' | 'SHORT';
 
@@ -16,6 +20,11 @@ export default function PositionCalculatorPage() {
   const [tp2, setTp2] = useState(54000);
   const [leverage, setLeverage] = useState(10);
   const [feeBps, setFeeBps] = useState(4); // 0.04% per side
+  // Kelly inputs (from prior backtest, user-editable)
+  const [winRate, setWinRate] = useState(50);
+  const [avgWin, setAvgWin] = useState(2);
+  const [avgLoss, setAvgLoss] = useState(1);
+  const { settings: tgSettings } = useTelegramSettings();
 
   const calc = useMemo(() => {
     const riskUsdt = (account * riskPct) / 100;
