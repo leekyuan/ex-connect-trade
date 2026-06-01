@@ -154,7 +154,7 @@ export default function MarketScreenerPage() {
                     {loading && rows.length === 0
                       ? Array.from({ length: 10 }).map((_, i) => (
                           <tr key={i} className="border-b border-border/50">
-                            <td colSpan={9} className="p-2"><Skeleton className="h-7 w-full" /></td>
+                            <td colSpan={10} className="p-2"><Skeleton className="h-7 w-full" /></td>
                           </tr>
                         ))
                       : filtered.map(r => (
