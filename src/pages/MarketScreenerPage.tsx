@@ -191,10 +191,14 @@ export default function MarketScreenerPage() {
                               {r.sigs == null ? <Skeleton className="h-5 w-16 mx-auto" /> :
                                 <ConsensusBadge sigs={r.sigs} />}
                             </td>
+                            <td className="px-3 py-2 text-center">
+                              {r.sigs == null ? <Skeleton className="h-5 w-12 mx-auto" /> :
+                                <WeightedScoreCell score={r.sigs.weightedScore} />}
+                            </td>
                           </tr>
                         ))}
                     {!loading && filtered.length === 0 && (
-                      <tr><td colSpan={9} className="p-6 text-center text-muted-foreground text-sm">조건에 맞는 코인이 없습니다.</td></tr>
+                      <tr><td colSpan={10} className="p-6 text-center text-muted-foreground text-sm">조건에 맞는 코인이 없습니다.</td></tr>
                     )}
                   </tbody>
                 </table>
