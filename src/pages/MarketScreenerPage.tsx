@@ -82,8 +82,14 @@ export default function MarketScreenerPage() {
                 : ` · MTF ${mtfProgress}/${mtfTotal} 셀 완료`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-mono">{countdown}s</span>
+          <div className="flex items-center gap-2 min-w-[180px]">
+            <div className="flex-1">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                <span>다음 갱신</span>
+                <span className="font-mono">{countdown}s</span>
+              </div>
+              <Progress value={((REFRESH_MS / 1000 - countdown) / (REFRESH_MS / 1000)) * 100} className="h-1" />
+            </div>
             <Button size="sm" variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> 새로고침
             </Button>
