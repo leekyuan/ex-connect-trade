@@ -44,7 +44,7 @@ async function computeFor(sym: string, tf = '1h'): Promise<CoinTheorySignals | n
         harmonic: { dir: 'WATCH', confidence: 0 },
         neely: { dir: 'WATCH', confidence: 0 },
         fractal: { dir: 'WATCH', confidence: 0 },
-        consensus: 'WATCH', longCount: 0, shortCount: 0,
+        consensus: 'WATCH', longCount: 0, shortCount: 0, weightedScore: 0,
         exchange, fallback, status: 'low_data',
       };
       cache.set(ck, { ts: Date.now(), data });
@@ -63,13 +63,31 @@ async function computeFor(sym: string, tf = '1h'): Promise<CoinTheorySignals | n
     const consensus: Dir = longCount > shortCount && longCount >= 2 ? 'LONG'
       : shortCount > longCount && shortCount >= 2 ? 'SHORT' : 'WATCH';
 
+    // 가중 점수: 사용자 가중치(ict/wyckoff)+기본 1.0(나머지)
+    const stored = getStoredWeights();
+    const weights = {
+      ict: stored.ict ?? 1, wyckoff: stored.wyckoff ?? 1,
+      harmonic: 1, neely: 1, fractal: 1,
+    };
+    const entries: Array<[keyof typeof weights, typeof ict]> = [
+      ['ict', ict], ['wyckoff', wy], ['harmonic', ha], ['neely', ne], ['fractal', fr],
+    ];
+    let num = 0, den = 0;
+    for (const [k, s] of entries) {
+      const w = weights[k];
+      const sign = s.signal === 'LONG' ? 1 : s.signal === 'SHORT' ? -1 : 0;
+      num += sign * s.confidence * w;
+      den += 100 * w;
+    }
+    const weightedScore = den > 0 ? Math.round((num / den) * 100) : 0;
+
     const data: CoinTheorySignals = {
       ict: { dir: toDir(ict.signal), confidence: ict.confidence },
       wyckoff: { dir: toDir(wy.signal), confidence: wy.confidence },
       harmonic: { dir: toDir(ha.signal), confidence: ha.confidence },
       neely: { dir: toDir(ne.signal), confidence: ne.confidence },
       fractal: { dir: toDir(fr.signal), confidence: fr.confidence },
-      consensus, longCount, shortCount,
+      consensus, longCount, shortCount, weightedScore,
       exchange, fallback, status: 'ok',
     };
     cache.set(ck, { ts: Date.now(), data });
@@ -81,7 +99,7 @@ async function computeFor(sym: string, tf = '1h'): Promise<CoinTheorySignals | n
       harmonic: { dir: 'WATCH', confidence: 0 },
       neely: { dir: 'WATCH', confidence: 0 },
       fractal: { dir: 'WATCH', confidence: 0 },
-      consensus: 'WATCH', longCount: 0, shortCount: 0,
+      consensus: 'WATCH', longCount: 0, shortCount: 0, weightedScore: 0,
       exchange: 'BINANCE', fallback: false, status: 'failed',
     };
     return data;
