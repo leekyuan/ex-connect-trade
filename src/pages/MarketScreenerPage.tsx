@@ -147,6 +147,7 @@ export default function MarketScreenerPage() {
                       <th className="px-3 py-2 text-center">Neely</th>
                       <th className="px-3 py-2 text-center">프랙탈</th>
                       <th className="px-3 py-2 text-center">합의</th>
+                      <th className="px-3 py-2 text-center" title="사용자 가중치 반영 -100..+100">가중점수</th>
                     </tr>
                   </thead>
                   <tbody>
