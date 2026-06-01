@@ -6,6 +6,7 @@ import { analyzeHarmonic } from '@/utils/theories/harmonic';
 import { analyzeNeely } from '@/utils/theories/neely';
 import { analyzeFractal } from '@/utils/theories/fractal';
 import { fetchKlinesFallback, type ExchangeId } from '@/lib/multiExchangeKlines';
+import { getStoredWeights } from '@/hooks/useTheoryWeights';
 
 export type Dir = 'LONG' | 'SHORT' | 'WATCH';
 
@@ -18,9 +19,10 @@ export interface CoinTheorySignals {
   consensus: Dir;
   longCount: number;
   shortCount: number;
+  /** 가중 합계 점수 -100..+100 (사용자 가중치 반영) */
+  weightedScore: number;
   exchange: ExchangeId;
   fallback: boolean;
-  /** 캔들 부족 또는 모든 거래소 실패 */
   status?: 'ok' | 'low_data' | 'failed';
 }
 
