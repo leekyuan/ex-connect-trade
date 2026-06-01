@@ -6,6 +6,7 @@ import { useScreenerMtf, MTF_TFS, type MtfTf, type MtfCell } from '@/hooks/useSc
 import { useBinanceTicker } from '@/hooks/useBinanceTicker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
