@@ -269,6 +269,21 @@ function ConsensusBadge({ sigs }: { sigs: CoinTheorySignals }) {
   );
 }
 
+function WeightedScoreCell({ score }: { score: number }) {
+  const abs = Math.min(100, Math.abs(score));
+  const cls = score > 15 ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+    : score < -15 ? 'text-red-400 border-red-500/40 bg-red-500/10'
+    : 'text-muted-foreground border-border bg-muted/40';
+  return (
+    <div className={`inline-flex flex-col items-center px-2 py-0.5 rounded border min-w-[56px] ${cls}`}>
+      <span className="font-mono font-bold text-[11px]">{score > 0 ? '+' : ''}{score}</span>
+      <div className="w-full h-0.5 mt-0.5 rounded bg-background/60 overflow-hidden">
+        <div className="h-full bg-current" style={{ width: `${abs}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function Legend({ dir, label }: { dir: Dir; label: string }) {
   const s = dirStyle(dir);
   return (
