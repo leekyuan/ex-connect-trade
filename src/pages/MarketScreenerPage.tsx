@@ -6,6 +6,7 @@ import { useScreenerMtf, MTF_TFS, type MtfTf, type MtfCell } from '@/hooks/useSc
 import { useBinanceTicker } from '@/hooks/useBinanceTicker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -81,8 +82,14 @@ export default function MarketScreenerPage() {
                 : ` · MTF ${mtfProgress}/${mtfTotal} 셀 완료`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-mono">{countdown}s</span>
+          <div className="flex items-center gap-2 min-w-[180px]">
+            <div className="flex-1">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                <span>다음 갱신</span>
+                <span className="font-mono">{countdown}s</span>
+              </div>
+              <Progress value={((REFRESH_MS / 1000 - countdown) / (REFRESH_MS / 1000)) * 100} className="h-1" />
+            </div>
             <Button size="sm" variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> 새로고침
             </Button>
@@ -140,13 +147,14 @@ export default function MarketScreenerPage() {
                       <th className="px-3 py-2 text-center">Neely</th>
                       <th className="px-3 py-2 text-center">프랙탈</th>
                       <th className="px-3 py-2 text-center">합의</th>
+                      <th className="px-3 py-2 text-center" title="사용자 가중치 반영 -100..+100">가중점수</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading && rows.length === 0
                       ? Array.from({ length: 10 }).map((_, i) => (
                           <tr key={i} className="border-b border-border/50">
-                            <td colSpan={9} className="p-2"><Skeleton className="h-7 w-full" /></td>
+                            <td colSpan={10} className="p-2"><Skeleton className="h-7 w-full" /></td>
                           </tr>
                         ))
                       : filtered.map(r => (
@@ -183,10 +191,14 @@ export default function MarketScreenerPage() {
                               {r.sigs == null ? <Skeleton className="h-5 w-16 mx-auto" /> :
                                 <ConsensusBadge sigs={r.sigs} />}
                             </td>
+                            <td className="px-3 py-2 text-center">
+                              {r.sigs == null ? <Skeleton className="h-5 w-12 mx-auto" /> :
+                                <WeightedScoreCell score={r.sigs.weightedScore} />}
+                            </td>
                           </tr>
                         ))}
                     {!loading && filtered.length === 0 && (
-                      <tr><td colSpan={9} className="p-6 text-center text-muted-foreground text-sm">조건에 맞는 코인이 없습니다.</td></tr>
+                      <tr><td colSpan={10} className="p-6 text-center text-muted-foreground text-sm">조건에 맞는 코인이 없습니다.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -253,6 +265,21 @@ function ConsensusBadge({ sigs }: { sigs: CoinTheorySignals }) {
     <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded border ${s.box} ${s.text}`}>
       <span className="font-bold text-[11px]">{strong ? '★ ' : ''}{s.label}</span>
       <span className="font-mono text-[9px] opacity-80">{sigs.longCount}L · {sigs.shortCount}S</span>
+    </div>
+  );
+}
+
+function WeightedScoreCell({ score }: { score: number }) {
+  const abs = Math.min(100, Math.abs(score));
+  const cls = score > 15 ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+    : score < -15 ? 'text-red-400 border-red-500/40 bg-red-500/10'
+    : 'text-muted-foreground border-border bg-muted/40';
+  return (
+    <div className={`inline-flex flex-col items-center px-2 py-0.5 rounded border min-w-[56px] ${cls}`}>
+      <span className="font-mono font-bold text-[11px]">{score > 0 ? '+' : ''}{score}</span>
+      <div className="w-full h-0.5 mt-0.5 rounded bg-background/60 overflow-hidden">
+        <div className="h-full bg-current" style={{ width: `${abs}%` }} />
+      </div>
     </div>
   );
 }

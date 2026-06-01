@@ -19,33 +19,24 @@ export interface CoinData {
   is_top_volume: boolean;
 }
 
-const STABLECOINS = new Set([
-  // USD pegged
-  'USDT','USDC','BUSD','DAI','TUSD','USDP','USDD','GUSD',
-  'FRAX','LUSD','SUSD','FDUSD','PYUSD','USDE','CRVUSD',
-  'MKUSD','GHO','USD1','USDX','CUSD','USDN','HUSD','MUSD',
-  'USDJ','OUSD','ALUSD','DOLA','MAI','MIM','BEAN','USDS',
-  'USDM','ZUSD','FLEXUSD',
-  // EUR pegged
-  'EURS','EURT','EUROC','STEUR',
-  // Wrapped stables
-  'WLFI','WUSDT','WUSDC',
-  // LST (Liquid Staking Tokens) — track ETH price
-  'STETH','RETH','CBETH','WBETH','BETH','FRXETH','SFRXETH',
-  'WSTETH','SWETH','ANKRETH','OSETH',
-  // BTC wrapped
-  'WBTC','BTCB','HBTC','RENBTC',
+/**
+ * 사양: USDT, USDC, BUSD, DAI, TUSD, FDUSD, USDP, USDD, GUSD, PYUSD,
+ *       FRAX, LUSD, USDE, CRVUSD, SUSD, USDJ, CUSD, AUSD, USDS, USDX (정확 20종)
+ * + Wrapped/LST 파생토큰(ETH/BTC 가격을 그대로 따라가는 것들)도 분석 무의미하므로 별도 제외
+ */
+const STABLECOINS_20 = new Set([
+  'USDT','USDC','BUSD','DAI','TUSD','FDUSD','USDP','USDD','GUSD','PYUSD',
+  'FRAX','LUSD','USDE','CRVUSD','SUSD','USDJ','CUSD','AUSD','USDS','USDX',
+]);
+const WRAPPED_DERIVATIVES = new Set([
+  'STETH','WSTETH','RETH','CBETH','WBETH','BETH','FRXETH','SFRXETH','SWETH','ANKRETH','OSETH','WEETH','EZETH',
+  'WBTC','BTCB','HBTC','RENBTC','TBTC',
+  'WETH','WBNB',
 ]);
 
 const isStable = (coin: { symbol: string; name?: string }): boolean => {
-  if (STABLECOINS.has(coin.symbol)) return true;
-  const nameLower = (coin.name || '').toLowerCase();
-  if (nameLower.includes('usd') && !nameLower.includes('bittensor')) return true;
-  if (nameLower.includes('stablecoin')) return true;
-  if (nameLower.includes('pegged')) return true;
-  if (nameLower.includes('wrapped') && !nameLower.includes('bnb')) return true;
-  if (coin.symbol.startsWith('USD') || coin.symbol.endsWith('USD')) return true;
-  return false;
+  const sym = (coin.symbol || '').toUpperCase();
+  return STABLECOINS_20.has(sym) || WRAPPED_DERIVATIVES.has(sym);
 };
 
 // Coins not on Binance USDT spot — explicit fallback (still Binance USDT format)
