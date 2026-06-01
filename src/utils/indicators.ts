@@ -177,3 +177,81 @@ export function findSwingPoints(candles: Candle[], threshold = 0.03): SwingPoint
   points.push({ index: lastIdx, price: lastPrice, type: lastType });
   return points;
 }
+
+/* ── Stochastic Oscillator (%K, %D) ── */
+export interface StochResult { k: number[]; d: number[] }
+export function calcStoch(candles: Candle[], kPeriod = 14, dPeriod = 3, smoothK = 3): StochResult {
+  const len = candles.length;
+  const rawK: number[] = new Array(len).fill(NaN);
+  for (let i = kPeriod - 1; i < len; i++) {
+    let hh = -Infinity, ll = Infinity;
+    for (let j = i - kPeriod + 1; j <= i; j++) {
+      if (candles[j].high > hh) hh = candles[j].high;
+      if (candles[j].low < ll) ll = candles[j].low;
+    }
+    const range = hh - ll;
+    rawK[i] = range === 0 ? 50 : ((candles[i].close - ll) / range) * 100;
+  }
+  const k = calcEMA(rawK.map(v => isNaN(v) ? 0 : v), smoothK);
+  const d = calcEMA(k.map(v => isNaN(v) ? 0 : v), dPeriod);
+  return { k, d };
+}
+
+/* ── Fair Value Gap (3-candle imbalance) ── */
+export interface FVG { index: number; top: number; bottom: number; type: 'bullish' | 'bearish' }
+export function findFVGs(candles: Candle[], lookback = 120): FVG[] {
+  const out: FVG[] = [];
+  const start = Math.max(2, candles.length - lookback);
+  for (let i = start; i < candles.length; i++) {
+    const a = candles[i - 2], c = candles[i];
+    if (a.high < c.low) out.push({ index: i, top: c.low, bottom: a.high, type: 'bullish' });
+    else if (a.low > c.high) out.push({ index: i, top: a.low, bottom: c.high, type: 'bearish' });
+  }
+  return out;
+}
+
+/* ── Order Block (last opposite-color candle before strong impulse) ── */
+export interface OrderBlock { index: number; top: number; bottom: number; type: 'bullish' | 'bearish' }
+export function findOrderBlocks(candles: Candle[], lookback = 120, impulseMult = 1.5): OrderBlock[] {
+  const out: OrderBlock[] = [];
+  const start = Math.max(1, candles.length - lookback);
+  const sample = candles.slice(-50);
+  const avgRange = sample.reduce((s, c) => s + (c.high - c.low), 0) / Math.max(1, sample.length);
+  for (let i = start; i < candles.length; i++) {
+    const c = candles[i];
+    const prev = candles[i - 1];
+    if ((c.high - c.low) < avgRange * impulseMult) continue;
+    if (c.close > c.open && prev.close < prev.open) {
+      out.push({ index: i - 1, top: prev.high, bottom: prev.low, type: 'bullish' });
+    } else if (c.close < c.open && prev.close > prev.open) {
+      out.push({ index: i - 1, top: prev.high, bottom: prev.low, type: 'bearish' });
+    }
+  }
+  return out;
+}
+
+/* ── Classic Pivot Points (from prior session H/L/C) ── */
+export interface PivotLevels { pp: number; r1: number; s1: number; r2: number; s2: number; r3: number; s3: number }
+export function calcPivotPoints(prevHigh: number, prevLow: number, prevClose: number): PivotLevels {
+  const pp = (prevHigh + prevLow + prevClose) / 3;
+  return {
+    pp,
+    r1: 2 * pp - prevLow,
+    s1: 2 * pp - prevHigh,
+    r2: pp + (prevHigh - prevLow),
+    s2: pp - (prevHigh - prevLow),
+    r3: prevHigh + 2 * (pp - prevLow),
+    s3: prevLow - 2 * (prevHigh - pp),
+  };
+}
+
+/* ── Fibonacci Retracement from swing high to swing low ── */
+export interface FibLevels { high: number; low: number; levels: { ratio: number; price: number }[] }
+export function calcFibLevels(swingHigh: number, swingLow: number): FibLevels {
+  const range = swingHigh - swingLow;
+  const ratios = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618];
+  return {
+    high: swingHigh, low: swingLow,
+    levels: ratios.map(r => ({ ratio: r, price: swingHigh - range * r })),
+  };
+}
