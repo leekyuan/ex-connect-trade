@@ -14,7 +14,7 @@
  */
 import { fetchKlines } from './backtest';
 import { computeUnifiedSignal, type UnifiedSignal } from './unifiedSignal';
-import { calcEMA, calcATR, type Candle } from './indicators';
+import { calcEMA, calcATR, calcRSI, type Candle } from './indicators';
 
 export type Period = '1m' | '3m' | '6m' | '1y';
 
@@ -97,9 +97,13 @@ const PERIOD_DAYS: Record<Period, number> = { '1m': 30, '3m': 90, '6m': 180, '1y
 const FEE = 0.0004;
 const SLIP = 0.0005;
 const INTERVAL = '4h'; // 4H봉 — 노이즈 감소, 추세 추종 강화
-const COOLDOWN_BARS = 3; // 청산 후 N봉 동안 재진입 금지 (whipsaw 방지)
-const MIN_SCORE_BUY = 70;  // 신호 점수가 이 이상일 때만 LONG (STRONG_BUY ≥75, BUY ≥60 → 70으로 타이트)
-const MIN_SCORE_SELL = 30; // 이 이하일 때만 SHORT
+const COOLDOWN_BARS = 6; // 청산 후 N봉 동안 재진입 금지 (whipsaw 방지) — v3 강화
+const MIN_SCORE_BUY = 75;  // v3 강화: STRONG_BUY만 사실상 통과
+const MIN_SCORE_SELL = 25; // v3 강화
+const RSI_LONG_MAX = 72;   // 과매수에서 추격 LONG 금지
+const RSI_SHORT_MIN = 28;  // 과매도에서 추격 SHORT 금지
+const VOL_FILTER_MULT = 0.7; // 직전봉 거래량 ≥ SMA20×0.7 (거래량 빈약 진입 차단)
+const MAX_EXPANSION_ATR = 2.5; // 종가가 EMA20에서 ATR×N 이상 벗어나면 진입 금지 (FOMO 차단)
 
 interface OpenPos {
   side: 'LONG' | 'SHORT';
@@ -136,19 +140,23 @@ export async function runProfitFirstBacktest(
 
   onProgress('지표 사전계산 중...');
   const closes = candles.map(c => c.close);
+  const vols = candles.map(c => c.volume);
   const ema200 = calcEMA(closes, 200);
+  const ema20 = calcEMA(closes, 20);
   const atr = calcATR(candles, 14);
+  const rsi = calcRSI(closes, 14);
+  const volSma = calcEMA(vols, 20); // EMA로 근사 (SMA 대용)
 
   onProgress('통합 신호 시뮬레이션 중...');
 
-  const result = simulate(candles, ema200, atr, config, startIdx, candles.length);
+  const result = simulate(candles, ema200, ema20, atr, rsi, volSma, config, startIdx, candles.length);
 
   // ── Walk-forward (사용자 기간 내에서만 분할) ──
   onProgress('워크포워드 분석...');
   const userBars = candles.length - startIdx;
   const split = startIdx + Math.floor(userBars * 0.7);
-  const isResult = simulate(candles, ema200, atr, config, startIdx, split);
-  const oosResult = simulate(candles, ema200, atr, config, split, candles.length);
+  const isResult = simulate(candles, ema200, ema20, atr, rsi, volSma, config, startIdx, split);
+  const oosResult = simulate(candles, ema200, ema20, atr, rsi, volSma, config, split, candles.length);
   const walkForward: WalkForwardSlice[] = [
     {
       label: 'In-Sample (70%)',
@@ -179,7 +187,10 @@ export async function runProfitFirstBacktest(
 function simulate(
   candles: Candle[],
   ema200: number[],
+  ema20: number[],
   atr: number[],
+  rsi: number[],
+  volSma: number[],
   config: PFBacktestConfig,
   from: number,
   to: number
@@ -316,7 +327,7 @@ function simulate(
       // Cooldown after recent exit (avoid whipsaw re-entry)
       if (i - lastExitIdx < COOLDOWN_BARS) continue;
 
-      // Strict score threshold — only high-conviction trades
+      // Strict score threshold — v3: 사실상 STRONG만 통과
       const goesLong  = sig.label === 'STRONG_BUY'  || (sig.label === 'BUY'  && sig.score >= MIN_SCORE_BUY);
       const goesShort = sig.label === 'STRONG_SELL' || (sig.label === 'SELL' && sig.score <= MIN_SCORE_SELL);
       if (!goesLong && !goesShort) continue;
@@ -330,6 +341,29 @@ function simulate(
         if (goesShort && (cur.close > e200 || slopeUp)) continue;
       }
 
+      // ── v3 추가 필터 ──
+      // 1) RSI 과열/과냉 추격 차단
+      const r = rsi[i];
+      if (isFinite(r)) {
+        if (goesLong && r > RSI_LONG_MAX) continue;
+        if (goesShort && r < RSI_SHORT_MIN) continue;
+      }
+      // 2) 거래량 빈약 진입 차단
+      const vs = volSma[i];
+      if (isFinite(vs) && vs > 0 && cur.volume < vs * VOL_FILTER_MULT) continue;
+      // 3) FOMO 차단: EMA20에서 ATR×N 이상 벗어난 캔들에 진입 금지
+      const e20 = ema20[i];
+      if (isFinite(e20) && a > 0) {
+        const dist = Math.abs(cur.close - e20) / a;
+        if (dist > MAX_EXPANSION_ATR) continue;
+      }
+      // 4) 신호 2봉 지속 확인 (이전 봉도 같은 방향)
+      const prevSig = computeUnifiedSignal(candles.slice(0, i), candles[i - 1].close);
+      if (prevSig) {
+        if (goesLong && !(prevSig.label === 'BUY' || prevSig.label === 'STRONG_BUY')) continue;
+        if (goesShort && !(prevSig.label === 'SELL' || prevSig.label === 'STRONG_SELL')) continue;
+      }
+
       const side: 'LONG' | 'SHORT' = goesLong ? 'LONG' : 'SHORT';
       const sizingPct = sig.label === 'STRONG_BUY' || sig.label === 'STRONG_SELL'
         ? config.strongSize
@@ -338,12 +372,12 @@ function simulate(
       const entry = side === 'LONG' ? rawEntry * (1 + SLIP) : rawEntry * (1 - SLIP);
       const size = cash * sizingPct;
       if (size < 10) continue;
-      // Initial SL: signal SL OR ATR×1.5
-      const slDist = a * 1.5;
+      // v3: SL 타이트하게 (ATR×1.2) — 빠른 컷 + 큰 RR
+      const slDist = a * 1.2;
       const sl = side === 'LONG' ? Math.min(sig.sl, entry - slDist) : Math.max(sig.sl, entry + slDist);
-      // TP1 = signal tp1 OR 1.5R
+      // TP1 = 2R (v2의 1.5R → 2R로 상향, 부분익절 + 트레일로 평균 R 극대화)
       const risk = Math.abs(entry - sl);
-      const tp1 = side === 'LONG' ? entry + risk * 1.5 : entry - risk * 1.5;
+      const tp1 = side === 'LONG' ? entry + risk * 2.0 : entry - risk * 2.0;
 
       position = {
         side,
