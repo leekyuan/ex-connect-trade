@@ -13,6 +13,8 @@ import { HarmonicPatternPanel } from '@/components/MarketAnalysis/HarmonicPatter
 import { SignalBacktestCard } from '@/components/MarketAnalysis/SignalBacktestCard';
 import { MasterTradePlanCard } from '@/components/MarketAnalysis/MasterTradePlanCard';
 import { IctWyckoffMonitor } from '@/components/MarketAnalysis/IctWyckoffMonitor';
+import { ProMarketPanel } from '@/components/MarketAnalysis/ProMarketPanel';
+import { NewsCatalystCard } from '@/components/MarketAnalysis/NewsCatalystCard';
 import { AITradingAssistant } from '@/components/dashboard/AITradingAssistant';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LABEL_META } from '@/utils/unifiedSignal';
@@ -368,6 +370,12 @@ export default function MarketAnalysisPage() {
             )}
           </div>
         </div>
+
+        {/* ── 뉴스/SNS 호재악재 카드 ── */}
+        <NewsCatalystCard symbol={symbol} />
+
+        {/* ── 파생상품 실시간 패널 (펀비/OI/L-S/CVD/RSI/청산) ── */}
+        <ProMarketPanel symbol={symbol} />
 
         {/* AI 코치 — 시장분석 컨텍스트 주입 */}
         <AITradingAssistant
