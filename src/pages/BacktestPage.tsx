@@ -458,14 +458,29 @@ export default function BacktestPage() {
   );
 }
 
-function Metric({ label, value, color = 'text-foreground', tip }: { label: string; value: string; color?: string; tip?: string }) {
+type Tier = 'green' | 'yellow' | 'red';
+
+function pfTier(pf: number): Tier {
+  if (pf >= 1.5) return 'green';
+  if (pf >= 1.0) return 'yellow';
+  return 'red';
+}
+
+const TIER_CLS: Record<Tier, { border: string; bg: string; text: string }> = {
+  green:  { border: 'border-emerald-500/40', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  yellow: { border: 'border-amber-500/40',   bg: 'bg-amber-500/10',   text: 'text-amber-400'   },
+  red:    { border: 'border-red-500/40',     bg: 'bg-red-500/10',     text: 'text-red-400'     },
+};
+
+function MetricCard({ label, value, tier, tip }: { label: string; value: string; tier: Tier; tip?: string }) {
+  const s = TIER_CLS[tier];
   return (
-    <div className="rounded-lg border border-border bg-background p-3">
+    <div className={`rounded-lg border ${s.border} ${s.bg} p-3`}>
       <div className="text-xs text-muted-foreground flex items-center gap-1">
         {label}
         {tip && <InfoTip text={tip} />}
       </div>
-      <div className={`text-lg font-bold ${color} mt-0.5`}>{value}</div>
+      <div className={`text-xl font-bold ${s.text} mt-0.5 font-mono`}>{value}</div>
     </div>
   );
 }
