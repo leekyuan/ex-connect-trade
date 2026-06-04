@@ -537,7 +537,7 @@ function simulate(
 // ──────────────────────────────────────────
 function runMonteCarlo(trades: PFTrade[], initial: number, n: number): MonteCarloResult {
   if (trades.length < 5) {
-    return { median: 0, worst5: 0, best5: 0, probProfit: 0, worstDrawdown: 0 };
+    return { median: 0, worst5: 0, best5: 0, p25: 0, p75: 0, probProfit: 0, worstDrawdown: 0 };
   }
   const finals: number[] = [];
   const dds: number[] = [];
@@ -549,8 +549,7 @@ function runMonteCarlo(trades: PFTrade[], initial: number, n: number): MonteCarl
     let maxDD = 0;
     for (let k = 0; k < pcts.length; k++) {
       const r = pcts[Math.floor(Math.random() * pcts.length)];
-      // Simplified: full equity exposed each trade
-      eq = eq * (1 + r * 0.5); // half exposure to mimic sizing
+      eq = eq * (1 + r * 0.5);
       if (eq > peak) peak = eq;
       const dd = ((peak - eq) / peak) * 100;
       if (dd > maxDD) maxDD = dd;
@@ -564,11 +563,58 @@ function runMonteCarlo(trades: PFTrade[], initial: number, n: number): MonteCarl
   const profitable = finals.filter(f => f > initial).length;
   return {
     median: Number(((pct(finals, 0.5) / initial - 1) * 100).toFixed(2)),
+    p25:    Number(((pct(finals, 0.25) / initial - 1) * 100).toFixed(2)),
+    p75:    Number(((pct(finals, 0.75) / initial - 1) * 100).toFixed(2)),
     worst5: Number(((pct(finals, 0.05) / initial - 1) * 100).toFixed(2)),
-    best5: Number(((pct(finals, 0.95) / initial - 1) * 100).toFixed(2)),
+    best5:  Number(((pct(finals, 0.95) / initial - 1) * 100).toFixed(2)),
     probProfit: Number(((profitable / n) * 100).toFixed(1)),
     worstDrawdown: Number(pct(dds, 0.95).toFixed(2)),
   };
+}
+
+// ──────────────────────────────────────────
+// Kelly Criterion — 롤링 통계 기반 (최근 30거래)
+// ──────────────────────────────────────────
+function computeKellyPct(trades: PFTrade[]): number {
+  if (trades.length < 8) return KELLY_MIN * 2; // 워밍업: 4%
+  const recent = trades.slice(-30);
+  const wins = recent.filter(t => t.pnlPct > 0);
+  const losses = recent.filter(t => t.pnlPct <= 0);
+  if (!wins.length || !losses.length) return KELLY_MIN * 2;
+  const w = wins.length / recent.length;
+  const avgWin = wins.reduce((s, t) => s + t.pnlPct, 0) / wins.length;
+  const avgLoss = Math.abs(losses.reduce((s, t) => s + t.pnlPct, 0) / losses.length);
+  if (avgWin <= 0 || avgLoss <= 0) return KELLY_MIN * 2;
+  const b = avgWin / avgLoss;       // 승/패 비율
+  // f* = W - (1-W)/b ; 1/4 Kelly로 보수적
+  const kelly = (w - (1 - w) / b) * 0.25;
+  return isFinite(kelly) ? kelly : KELLY_MIN;
+}
+
+// ──────────────────────────────────────────
+// 월별 수익률 (equity 기반)
+// ──────────────────────────────────────────
+function computeMonthlyReturns(
+  curve: { date: string; equity: number }[]
+): MonthlyReturn[] {
+  if (curve.length < 2) return [];
+  const byMonth = new Map<string, { first: number; last: number }>();
+  for (const p of curve) {
+    const key = p.date.slice(0, 7); // YYYY-MM
+    const cur = byMonth.get(key);
+    if (!cur) byMonth.set(key, { first: p.equity, last: p.equity });
+    else cur.last = p.equity;
+  }
+  return Array.from(byMonth.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, v]) => {
+      const [y, m] = key.split('-').map(Number);
+      return {
+        year: y,
+        month: m,
+        returnPct: Number(((v.last / v.first - 1) * 100).toFixed(2)),
+      };
+    });
 }
 
 // ──────────────────────────────────────────
