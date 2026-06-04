@@ -212,19 +212,22 @@ function simulate(
   ema200: number[],
   ema20: number[],
   atr: number[],
+  atrSma: number[],
   rsi: number[],
   volSma: number[],
   config: PFBacktestConfig,
   from: number,
   to: number
-): Omit<PFBacktestResult, 'walkForward' | 'monteCarlo' | 'candles'> {
+): Omit<PFBacktestResult, 'walkForward' | 'monteCarlo' | 'monthlyReturns' | 'candles'> {
   const trades: PFTrade[] = [];
   let cash = config.initialCash;
   let position: OpenPos | null = null;
   let lastExitIdx = -999;
-  const equityCurve: { date: string; equity: number; bh: number }[] = [];
+  let lossStreak = 0;
+  const equityCurve: { date: string; equity: number; bh: number; drawdownPct: number }[] = [];
+  let runningPeak = config.initialCash;
 
-  const startIdx = Math.max(from, 200); // EMA200 웜업 보장 (caller가 이미 webwarm 처리하지만 안전)
+  const startIdx = Math.max(from, 200);
   const endIdx = Math.min(to, candles.length - 1);
   const startPrice = candles[startIdx]?.open ?? candles[0].open;
 
