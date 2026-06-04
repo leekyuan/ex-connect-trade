@@ -70,6 +70,8 @@ export interface MonteCarloResult {
   median: number;
   worst5: number;
   best5: number;
+  p25: number;
+  p75: number;
   probProfit: number;
   worstDrawdown: number;
 }
@@ -82,14 +84,21 @@ export interface WalkForwardSlice {
   winRatePct: number;
 }
 
+export interface MonthlyReturn {
+  year: number;
+  month: number; // 1-12
+  returnPct: number;
+}
+
 export interface PFBacktestResult {
   trades: PFTrade[];
   metrics: PFMetrics;
-  equityCurve: { date: string; equity: number; bh: number }[];
+  equityCurve: { date: string; equity: number; bh: number; drawdownPct: number }[];
   startPrice: number;
   endPrice: number;
   walkForward: WalkForwardSlice[];
   monteCarlo: MonteCarloResult;
+  monthlyReturns: MonthlyReturn[];
   candles: Candle[];
 }
 
@@ -97,13 +106,26 @@ const PERIOD_DAYS: Record<Period, number> = { '1m': 30, '3m': 90, '6m': 180, '1y
 const FEE = 0.0004;
 const SLIP = 0.0005;
 const INTERVAL = '4h'; // 4H봉 — 노이즈 감소, 추세 추종 강화
-const COOLDOWN_BARS = 6; // 청산 후 N봉 동안 재진입 금지 (whipsaw 방지) — v3 강화
-const MIN_SCORE_BUY = 75;  // v3 강화: STRONG_BUY만 사실상 통과
-const MIN_SCORE_SELL = 25; // v3 강화
-const RSI_LONG_MAX = 72;   // 과매수에서 추격 LONG 금지
-const RSI_SHORT_MIN = 28;  // 과매도에서 추격 SHORT 금지
-const VOL_FILTER_MULT = 0.7; // 직전봉 거래량 ≥ SMA20×0.7 (거래량 빈약 진입 차단)
-const MAX_EXPANSION_ATR = 2.5; // 종가가 EMA20에서 ATR×N 이상 벗어나면 진입 금지 (FOMO 차단)
+const COOLDOWN_BARS = 6;
+const MIN_SCORE_BUY = 75;
+const MIN_SCORE_SELL = 25;
+// v4 — RSI 밴드: 롱 40~70, 숏 30~60
+const RSI_LONG_MIN = 40;
+const RSI_LONG_MAX = 70;
+const RSI_SHORT_MIN = 30;
+const RSI_SHORT_MAX = 60;
+const VOL_FILTER_MULT = 0.7;
+const MAX_EXPANSION_ATR = 2.5;
+// v4 — 변동성 레짐 필터: ATR(14) ≥ ATR50평균 × 1.0 (횡보장 차단)
+const ATR_REGIME_MULT = 1.0;
+// v4 — SL/TP/Trail
+const SL_ATR_MULT = 1.5;
+const TP_ATR_MULT = 3.0;            // RR 1:2 확보
+const TRAIL_ACTIVATE_ATR = 2.0;     // +ATR×2 수익시 트레일 발동
+// v4 — Kelly 사이징
+const KELLY_CAP = 0.10;             // 최대 자본의 10%
+const KELLY_MIN = 0.02;             // 최소 2%
+const LOSS_STREAK_REDUCE_AT = 3;    // 연속 3패 시 사이즈 50% 축소
 
 interface OpenPos {
   side: 'LONG' | 'SHORT';
