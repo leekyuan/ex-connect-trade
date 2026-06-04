@@ -2,8 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  ComposedChart, Bar, BarChart, ReferenceArea,
 } from 'recharts';
 import { FlaskConical, Play, TrendingUp, Loader2, Download, Sparkles, Shuffle, Target } from 'lucide-react';
+import { MonthlyReturnsHeatmap } from '@/components/Backtest/MonthlyReturnsHeatmap';
+import { MonteCarloBoxPlot } from '@/components/Backtest/MonteCarloBoxPlot';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
