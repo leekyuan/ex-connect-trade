@@ -167,18 +167,18 @@ export async function runProfitFirstBacktest(
   const ema20 = calcEMA(closes, 20);
   const atr = calcATR(candles, 14);
   const rsi = calcRSI(closes, 14);
-  const volSma = calcEMA(vols, 20); // EMA로 근사 (SMA 대용)
+  const volSma = calcEMA(vols, 20);
+  // v4 — ATR 평균(50봉)으로 변동성 레짐 측정
+  const atrSma = calcEMA(atr, 50);
 
   onProgress('통합 신호 시뮬레이션 중...');
+  const result = simulate(candles, ema200, ema20, atr, atrSma, rsi, volSma, config, startIdx, candles.length);
 
-  const result = simulate(candles, ema200, ema20, atr, rsi, volSma, config, startIdx, candles.length);
-
-  // ── Walk-forward (사용자 기간 내에서만 분할) ──
   onProgress('워크포워드 분석...');
   const userBars = candles.length - startIdx;
   const split = startIdx + Math.floor(userBars * 0.7);
-  const isResult = simulate(candles, ema200, ema20, atr, rsi, volSma, config, startIdx, split);
-  const oosResult = simulate(candles, ema200, ema20, atr, rsi, volSma, config, split, candles.length);
+  const isResult = simulate(candles, ema200, ema20, atr, atrSma, rsi, volSma, config, startIdx, split);
+  const oosResult = simulate(candles, ema200, ema20, atr, atrSma, rsi, volSma, config, split, candles.length);
   const walkForward: WalkForwardSlice[] = [
     {
       label: 'In-Sample (70%)',
@@ -196,11 +196,12 @@ export async function runProfitFirstBacktest(
     },
   ];
 
-  // ── Monte-Carlo (resample trade sequence 1000x) ──
   onProgress('몬테카를로 시뮬레이션...');
   const monteCarlo = runMonteCarlo(result.trades, config.initialCash, 1000);
 
-  return { ...result, walkForward, monteCarlo, candles };
+  const monthlyReturns = computeMonthlyReturns(result.equityCurve);
+
+  return { ...result, walkForward, monteCarlo, monthlyReturns, candles };
 }
 
 // ──────────────────────────────────────────
