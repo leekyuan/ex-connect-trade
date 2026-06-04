@@ -337,18 +337,20 @@ function simulate(
           : position.entry / exit - 1;
         const pnl = position.remainingSize * pct - position.remainingSize * FEE * 2;
         cash += pnl;
+        const pnlPct = Number((pct * 100 - 0.18).toFixed(3));
         trades.push({
           entryDate: position.entryDate,
           exitDate: new Date(next.time).toISOString(),
           side: position.side,
           entryPrice: position.entry,
           exitPrice: exit,
-          pnlPct: Number((pct * 100 - 0.18).toFixed(3)),
+          pnlPct,
           pnlUsdt: Number(pnl.toFixed(2)),
           signalLabel: position.label,
           exitReason: reason,
           holdingHours: Math.round((next.time - position.entryTime) / 3_600_000),
         });
+        if (pnlPct <= 0) lossStreak++; else lossStreak = 0;
         position = null;
         lastExitIdx = i;
       }
