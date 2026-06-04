@@ -358,15 +358,13 @@ function simulate(
 
     // ── New entry ──
     if (!position) {
-      // Cooldown after recent exit (avoid whipsaw re-entry)
       if (i - lastExitIdx < COOLDOWN_BARS) continue;
 
-      // Strict score threshold — v3: 사실상 STRONG만 통과
       const goesLong  = sig.label === 'STRONG_BUY'  || (sig.label === 'BUY'  && sig.score >= MIN_SCORE_BUY);
       const goesShort = sig.label === 'STRONG_SELL' || (sig.label === 'SELL' && sig.score <= MIN_SCORE_SELL);
       if (!goesLong && !goesShort) continue;
 
-      // Trend filter — EMA200 + slope must agree
+      // EMA200 추세 필터 + slope
       const e200 = ema200[i];
       const e200Prev = ema200[i - 10];
       if (config.useTrendFilter && isFinite(e200) && isFinite(e200Prev)) {
@@ -375,23 +373,29 @@ function simulate(
         if (goesShort && (cur.close > e200 || slopeUp)) continue;
       }
 
-      // ── v3 추가 필터 ──
-      // 1) RSI 과열/과냉 추격 차단
+      // v4 — RSI 밴드 필터: 롱 40~70, 숏 30~60
       const r = rsi[i];
       if (isFinite(r)) {
-        if (goesLong && r > RSI_LONG_MAX) continue;
-        if (goesShort && r < RSI_SHORT_MIN) continue;
+        if (goesLong && (r < RSI_LONG_MIN || r > RSI_LONG_MAX)) continue;
+        if (goesShort && (r < RSI_SHORT_MIN || r > RSI_SHORT_MAX)) continue;
       }
-      // 2) 거래량 빈약 진입 차단
+
+      // v4 — ATR 변동성 레짐 필터 (횡보장 차단)
+      const aSma = atrSma[i];
+      if (isFinite(aSma) && aSma > 0 && a < aSma * ATR_REGIME_MULT) continue;
+
+      // 거래량 빈약 차단
       const vs = volSma[i];
       if (isFinite(vs) && vs > 0 && cur.volume < vs * VOL_FILTER_MULT) continue;
-      // 3) FOMO 차단: EMA20에서 ATR×N 이상 벗어난 캔들에 진입 금지
+
+      // FOMO (EMA20 거리 차단)
       const e20 = ema20[i];
       if (isFinite(e20) && a > 0) {
         const dist = Math.abs(cur.close - e20) / a;
         if (dist > MAX_EXPANSION_ATR) continue;
       }
-      // 4) 신호 2봉 지속 확인 (이전 봉도 같은 방향)
+
+      // 신호 2봉 지속
       const prevSig = computeUnifiedSignal(candles.slice(0, i), candles[i - 1].close);
       if (prevSig) {
         if (goesLong && !(prevSig.label === 'BUY' || prevSig.label === 'STRONG_BUY')) continue;
@@ -399,26 +403,34 @@ function simulate(
       }
 
       const side: 'LONG' | 'SHORT' = goesLong ? 'LONG' : 'SHORT';
-      const sizingPct = sig.label === 'STRONG_BUY' || sig.label === 'STRONG_SELL'
-        ? config.strongSize
-        : config.normalSize;
+
+      // v4 — SL = ATR×1.5, TP = ATR×3.0
       const rawEntry = next.open;
       const entry = side === 'LONG' ? rawEntry * (1 + SLIP) : rawEntry * (1 - SLIP);
+      const slDist = a * SL_ATR_MULT;
+      const tpDist = a * TP_ATR_MULT;
+      const sl = side === 'LONG' ? entry - slDist : entry + slDist;
+      const tp1 = side === 'LONG' ? entry + tpDist : entry - tpDist;
+
+      // v4 — Kelly 사이징 (롤링 통계 기반, 10% 상한)
+      const kellyPct = computeKellyPct(trades);
+      let sizingPct = Math.min(KELLY_CAP, Math.max(KELLY_MIN, kellyPct));
+      // 강신호 보너스 (Kelly 위에 +30%, 단 상한 유지)
+      if (sig.label === 'STRONG_BUY' || sig.label === 'STRONG_SELL') {
+        sizingPct = Math.min(KELLY_CAP, sizingPct * 1.3);
+      }
+      // 연속 3패 이상이면 사이즈 50% 축소
+      if (lossStreak >= LOSS_STREAK_REDUCE_AT) sizingPct *= 0.5;
+
       const size = cash * sizingPct;
       if (size < 10) continue;
-      // v3: SL 타이트하게 (ATR×1.2) — 빠른 컷 + 큰 RR
-      const slDist = a * 1.2;
-      const sl = side === 'LONG' ? Math.min(sig.sl, entry - slDist) : Math.max(sig.sl, entry + slDist);
-      // TP1 = 2R (v2의 1.5R → 2R로 상향, 부분익절 + 트레일로 평균 R 극대화)
-      const risk = Math.abs(entry - sl);
-      const tp1 = side === 'LONG' ? entry + risk * 2.0 : entry - risk * 2.0;
 
       position = {
         side,
         entry,
         initialSize: size,
         remainingSize: size,
-        trailAnchor: side === 'LONG' ? next.open : next.open,
+        trailAnchor: next.open,
         sl,
         tp1,
         tp1Hit: false,
@@ -428,18 +440,21 @@ function simulate(
       };
     }
 
-    // Equity snapshot daily
-    if (i % 6 === 0 || i === endIdx - 1) { // 4H봉 × 6 = 일봉 스냅샷
+    // Equity snapshot (일봉)
+    if (i % 6 === 0 || i === endIdx - 1) {
       let mark = cash;
       if (position) {
         const dir = position.side === 'LONG' ? 1 : -1;
         mark = cash + position.remainingSize * ((cur.close - position.entry) / position.entry) * dir;
       }
+      if (mark > runningPeak) runningPeak = mark;
+      const dd = ((runningPeak - mark) / runningPeak) * 100;
       const bh = config.initialCash * (cur.close / startPrice);
       equityCurve.push({
         date: new Date(cur.time).toISOString().slice(0, 10),
         equity: Number(mark.toFixed(2)),
         bh: Number(bh.toFixed(2)),
+        drawdownPct: Number(dd.toFixed(2)),
       });
     }
   }
