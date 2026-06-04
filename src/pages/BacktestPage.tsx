@@ -2,8 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  ComposedChart, Bar, BarChart, ReferenceArea,
 } from 'recharts';
 import { FlaskConical, Play, TrendingUp, Loader2, Download, Sparkles, Shuffle, Target } from 'lucide-react';
+import { MonthlyReturnsHeatmap } from '@/components/Backtest/MonthlyReturnsHeatmap';
+import { MonteCarloBoxPlot } from '@/components/Backtest/MonteCarloBoxPlot';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -292,79 +295,115 @@ export default function BacktestPage() {
                 </div>
               </div>
 
-              {/* Metrics grid */}
+              {/* Metrics grid — color-coded */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Metric label="총 거래" value={String(result.metrics.totalTrades)} />
-                <Metric label="승률" value={`${result.metrics.winRatePct}%`} color={result.metrics.winRatePct >= 50 ? 'text-emerald-500' : 'text-amber-500'} />
-                <Metric label="Profit Factor" value={result.metrics.profitFactor.toFixed(2)} color={result.metrics.profitFactor >= 1.5 ? 'text-emerald-500' : 'text-amber-500'} tip="총 이익 / 총 손실. 1.5 이상 우수." />
-                <Metric label="Sharpe" value={result.metrics.sharpe.toFixed(2)} tip="위험조정 수익. 1 이상 양호." />
-                <Metric label="Sortino" value={result.metrics.sortino.toFixed(2)} tip="하방위험 조정 수익." />
-                <Metric label="Calmar" value={result.metrics.calmar.toFixed(2)} tip="CAGR / MDD." />
-                <Metric label="MDD" value={`${result.metrics.maxDrawdownPct}%`} color="text-red-500" />
-                <Metric label="Expectancy" value={`${result.metrics.expectancy.toFixed(2)}%`} tip="거래당 평균 기대수익." />
+                <MetricCard label="Profit Factor" value={result.metrics.profitFactor.toFixed(2)}
+                  tier={pfTier(result.metrics.profitFactor)}
+                  tip="총 이익 / 총 손실. ≥1.5 우수, 1.0~1.5 보통, <1.0 손실." />
+                <MetricCard label="승률" value={`${result.metrics.winRatePct}%`}
+                  tier={result.metrics.winRatePct >= 55 ? 'green' : result.metrics.winRatePct >= 45 ? 'yellow' : 'red'} />
+                <MetricCard label="Sharpe" value={result.metrics.sharpe.toFixed(2)}
+                  tier={result.metrics.sharpe >= 1.5 ? 'green' : result.metrics.sharpe >= 1 ? 'yellow' : 'red'}
+                  tip="위험조정 수익. ≥1.5 우수." />
+                <MetricCard label="Sortino" value={result.metrics.sortino.toFixed(2)}
+                  tier={result.metrics.sortino >= 2 ? 'green' : result.metrics.sortino >= 1 ? 'yellow' : 'red'}
+                  tip="하방위험 조정 수익. ≥2 우수." />
+                <MetricCard label="Calmar" value={result.metrics.calmar.toFixed(2)}
+                  tier={result.metrics.calmar >= 1 ? 'green' : result.metrics.calmar >= 0.5 ? 'yellow' : 'red'}
+                  tip="CAGR / MDD. ≥1 우수." />
+                <MetricCard label="MDD" value={`${result.metrics.maxDrawdownPct}%`}
+                  tier={result.metrics.maxDrawdownPct <= 10 ? 'green' : result.metrics.maxDrawdownPct <= 20 ? 'yellow' : 'red'}
+                  tip="최대 낙폭. ≤10% 양호." />
+                <MetricCard label="Expectancy" value={`${result.metrics.expectancy.toFixed(2)}%`}
+                  tier={result.metrics.expectancy >= 0.5 ? 'green' : result.metrics.expectancy >= 0 ? 'yellow' : 'red'}
+                  tip="거래당 평균 기대수익." />
+                <MetricCard label="총 거래" value={String(result.metrics.totalTrades)}
+                  tier={result.metrics.totalTrades >= 30 ? 'green' : result.metrics.totalTrades >= 10 ? 'yellow' : 'red'} />
               </div>
 
-              {/* Equity */}
+              {/* Equity curve with MDD shading */}
               {result.equityCurve.length > 0 && (
                 <div className="rounded-lg border border-border bg-background p-4">
-                  <h3 className="mb-3 text-sm font-semibold">수익 곡선 (전략 vs Buy &amp; Hold)</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={result.equityCurve}>
+                  <h3 className="mb-3 text-sm font-semibold">수익 곡선 (전략 vs Buy &amp; Hold + MDD 음영)</h3>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <ComposedChart data={result.equityCurve}>
                       <defs>
                         <linearGradient id="eq" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.45} />
                           <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `$${Number(v).toLocaleString()}`} />
+                      <YAxis yAxisId="L" stroke="hsl(var(--muted-foreground))" fontSize={11}
+                        tickFormatter={(v) => `$${Number(v).toLocaleString()}`} />
+                      <YAxis yAxisId="R" orientation="right" stroke="hsl(var(--destructive))" fontSize={11}
+                        tickFormatter={(v) => `${v}%`} domain={[0, 'dataMax']} reversed />
                       <Tooltip
                         contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                        formatter={(v: any, name: string) => [`$${Number(v).toLocaleString()}`, name === 'equity' ? '전략' : 'B&H']}
+                        formatter={(v: any, name: string) => {
+                          if (name === 'drawdownPct') return [`-${v}%`, 'MDD'];
+                          return [`$${Number(v).toLocaleString()}`, name === 'equity' ? '전략' : 'B&H'];
+                        }}
                       />
-                      <Legend formatter={(v) => v === 'equity' ? '수익률 우선 전략' : 'Buy & Hold'} />
-                      <Area type="monotone" dataKey="equity" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#eq)" />
-                      <Area type="monotone" dataKey="bh" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} fillOpacity={0} strokeDasharray="4 4" />
-                    </AreaChart>
+                      <Legend formatter={(v) => v === 'equity' ? '전략' : v === 'bh' ? 'Buy & Hold' : 'Drawdown'} />
+                      <Bar yAxisId="R" dataKey="drawdownPct" fill="hsl(var(--destructive))" fillOpacity={0.18} />
+                      <Area yAxisId="L" type="monotone" dataKey="equity" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#eq)" />
+                      <Area yAxisId="L" type="monotone" dataKey="bh" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} fillOpacity={0} strokeDasharray="4 4" />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               )}
 
-              {/* Walk-Forward */}
+              {/* Monthly heatmap */}
+              {result.monthlyReturns.length > 0 && (
+                <div className="rounded-lg border border-border bg-background p-4">
+                  <h3 className="mb-3 text-sm font-semibold">월별 수익률 히트맵</h3>
+                  <MonthlyReturnsHeatmap data={result.monthlyReturns} />
+                </div>
+              )}
+
+              {/* Walk-Forward — bar chart */}
               <div className="rounded-lg border border-border bg-background p-4">
                 <h3 className="mb-3 text-sm font-semibold flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-amber-500" />
-                  워크포워드 분석
+                  워크포워드 분석 (In-Sample vs Out-of-Sample)
                   <InfoTip text="앞 70%로 학습한 전략이 뒤 30% 미지의 구간에서도 작동하는지 검증." />
                 </h3>
-                <div className="grid gap-2 md:grid-cols-2">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={result.walkForward}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip
+                      contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: any, name: string) => [`${v}%`, name === 'totalReturnPct' ? '전략' : 'B&H']}
+                    />
+                    <Legend formatter={(v) => v === 'totalReturnPct' ? '전략' : 'Buy & Hold'} />
+                    <Bar dataKey="totalReturnPct" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="buyHoldReturnPct" fill="hsl(var(--muted-foreground))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-2 grid gap-2 md:grid-cols-2 text-[11px] text-muted-foreground">
                   {result.walkForward.map(w => (
-                    <div key={w.label} className="rounded-lg border border-border p-3">
-                      <div className="text-xs text-muted-foreground">{w.label}</div>
-                      <div className={`mt-1 text-xl font-bold ${w.totalReturnPct >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {w.totalReturnPct >= 0 ? '+' : ''}{w.totalReturnPct}%
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-1">
-                        B&amp;H {w.buyHoldReturnPct}% · {w.trades}건 · 승률 {w.winRatePct}%
-                      </div>
-                    </div>
+                    <div key={w.label}>{w.label}: {w.trades}건 · 승률 {w.winRatePct}%</div>
                   ))}
                 </div>
               </div>
 
-              {/* Monte Carlo */}
+              {/* Monte Carlo — boxplot */}
               <div className="rounded-lg border border-border bg-background p-4">
                 <h3 className="mb-3 text-sm font-semibold flex items-center gap-1.5">
                   <Shuffle className="h-4 w-4 text-primary" />
-                  몬테카를로 시뮬레이션 (1000회)
-                  <InfoTip text="거래 순서를 무작위로 1000번 재배열하여 결과의 신뢰도를 검증." />
+                  몬테카를로 시뮬레이션 (1000회) — 박스플롯
+                  <InfoTip text="거래 순서를 무작위로 1000회 재배열한 결과 분포. 5%/25%/중간값/75%/95% 구간." />
                 </h3>
-                <div className="grid gap-2 grid-cols-2 md:grid-cols-5 text-center">
+                <MonteCarloBoxPlot mc={result.monteCarlo} />
+                <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-5 text-center">
                   <McMetric label="수익 확률" value={`${result.monteCarlo.probProfit}%`} color={result.monteCarlo.probProfit >= 60 ? 'text-emerald-500' : 'text-amber-500'} />
-                  <McMetric label="중앙값" value={`${result.monteCarlo.median}%`} />
-                  <McMetric label="하위 5%" value={`${result.monteCarlo.worst5}%`} color="text-red-500" />
-                  <McMetric label="상위 5%" value={`${result.monteCarlo.best5}%`} color="text-emerald-500" />
+                  <McMetric label="중간값" value={`${result.monteCarlo.median}%`} />
+                  <McMetric label="25%" value={`${result.monteCarlo.p25}%`} color="text-amber-500" />
+                  <McMetric label="75%" value={`${result.monteCarlo.p75}%`} color="text-emerald-400" />
                   <McMetric label="최악 MDD" value={`${result.monteCarlo.worstDrawdown}%`} color="text-red-500" />
                 </div>
               </div>
@@ -419,14 +458,29 @@ export default function BacktestPage() {
   );
 }
 
-function Metric({ label, value, color = 'text-foreground', tip }: { label: string; value: string; color?: string; tip?: string }) {
+type Tier = 'green' | 'yellow' | 'red';
+
+function pfTier(pf: number): Tier {
+  if (pf >= 1.5) return 'green';
+  if (pf >= 1.0) return 'yellow';
+  return 'red';
+}
+
+const TIER_CLS: Record<Tier, { border: string; bg: string; text: string }> = {
+  green:  { border: 'border-emerald-500/40', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  yellow: { border: 'border-amber-500/40',   bg: 'bg-amber-500/10',   text: 'text-amber-400'   },
+  red:    { border: 'border-red-500/40',     bg: 'bg-red-500/10',     text: 'text-red-400'     },
+};
+
+function MetricCard({ label, value, tier, tip }: { label: string; value: string; tier: Tier; tip?: string }) {
+  const s = TIER_CLS[tier];
   return (
-    <div className="rounded-lg border border-border bg-background p-3">
+    <div className={`rounded-lg border ${s.border} ${s.bg} p-3`}>
       <div className="text-xs text-muted-foreground flex items-center gap-1">
         {label}
         {tip && <InfoTip text={tip} />}
       </div>
-      <div className={`text-lg font-bold ${color} mt-0.5`}>{value}</div>
+      <div className={`text-xl font-bold ${s.text} mt-0.5 font-mono`}>{value}</div>
     </div>
   );
 }

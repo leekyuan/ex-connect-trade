@@ -70,6 +70,8 @@ export interface MonteCarloResult {
   median: number;
   worst5: number;
   best5: number;
+  p25: number;
+  p75: number;
   probProfit: number;
   worstDrawdown: number;
 }
@@ -82,14 +84,21 @@ export interface WalkForwardSlice {
   winRatePct: number;
 }
 
+export interface MonthlyReturn {
+  year: number;
+  month: number; // 1-12
+  returnPct: number;
+}
+
 export interface PFBacktestResult {
   trades: PFTrade[];
   metrics: PFMetrics;
-  equityCurve: { date: string; equity: number; bh: number }[];
+  equityCurve: { date: string; equity: number; bh: number; drawdownPct: number }[];
   startPrice: number;
   endPrice: number;
   walkForward: WalkForwardSlice[];
   monteCarlo: MonteCarloResult;
+  monthlyReturns: MonthlyReturn[];
   candles: Candle[];
 }
 
@@ -97,13 +106,26 @@ const PERIOD_DAYS: Record<Period, number> = { '1m': 30, '3m': 90, '6m': 180, '1y
 const FEE = 0.0004;
 const SLIP = 0.0005;
 const INTERVAL = '4h'; // 4H봉 — 노이즈 감소, 추세 추종 강화
-const COOLDOWN_BARS = 6; // 청산 후 N봉 동안 재진입 금지 (whipsaw 방지) — v3 강화
-const MIN_SCORE_BUY = 75;  // v3 강화: STRONG_BUY만 사실상 통과
-const MIN_SCORE_SELL = 25; // v3 강화
-const RSI_LONG_MAX = 72;   // 과매수에서 추격 LONG 금지
-const RSI_SHORT_MIN = 28;  // 과매도에서 추격 SHORT 금지
-const VOL_FILTER_MULT = 0.7; // 직전봉 거래량 ≥ SMA20×0.7 (거래량 빈약 진입 차단)
-const MAX_EXPANSION_ATR = 2.5; // 종가가 EMA20에서 ATR×N 이상 벗어나면 진입 금지 (FOMO 차단)
+const COOLDOWN_BARS = 6;
+const MIN_SCORE_BUY = 75;
+const MIN_SCORE_SELL = 25;
+// v4 — RSI 밴드: 롱 40~70, 숏 30~60
+const RSI_LONG_MIN = 40;
+const RSI_LONG_MAX = 70;
+const RSI_SHORT_MIN = 30;
+const RSI_SHORT_MAX = 60;
+const VOL_FILTER_MULT = 0.7;
+const MAX_EXPANSION_ATR = 2.5;
+// v4 — 변동성 레짐 필터: ATR(14) ≥ ATR50평균 × 1.0 (횡보장 차단)
+const ATR_REGIME_MULT = 1.0;
+// v4 — SL/TP/Trail
+const SL_ATR_MULT = 1.5;
+const TP_ATR_MULT = 3.0;            // RR 1:2 확보
+const TRAIL_ACTIVATE_ATR = 2.0;     // +ATR×2 수익시 트레일 발동
+// v4 — Kelly 사이징
+const KELLY_CAP = 0.10;             // 최대 자본의 10%
+const KELLY_MIN = 0.02;             // 최소 2%
+const LOSS_STREAK_REDUCE_AT = 3;    // 연속 3패 시 사이즈 50% 축소
 
 interface OpenPos {
   side: 'LONG' | 'SHORT';
@@ -145,18 +167,18 @@ export async function runProfitFirstBacktest(
   const ema20 = calcEMA(closes, 20);
   const atr = calcATR(candles, 14);
   const rsi = calcRSI(closes, 14);
-  const volSma = calcEMA(vols, 20); // EMA로 근사 (SMA 대용)
+  const volSma = calcEMA(vols, 20);
+  // v4 — ATR 평균(50봉)으로 변동성 레짐 측정
+  const atrSma = calcEMA(atr, 50);
 
   onProgress('통합 신호 시뮬레이션 중...');
+  const result = simulate(candles, ema200, ema20, atr, atrSma, rsi, volSma, config, startIdx, candles.length);
 
-  const result = simulate(candles, ema200, ema20, atr, rsi, volSma, config, startIdx, candles.length);
-
-  // ── Walk-forward (사용자 기간 내에서만 분할) ──
   onProgress('워크포워드 분석...');
   const userBars = candles.length - startIdx;
   const split = startIdx + Math.floor(userBars * 0.7);
-  const isResult = simulate(candles, ema200, ema20, atr, rsi, volSma, config, startIdx, split);
-  const oosResult = simulate(candles, ema200, ema20, atr, rsi, volSma, config, split, candles.length);
+  const isResult = simulate(candles, ema200, ema20, atr, atrSma, rsi, volSma, config, startIdx, split);
+  const oosResult = simulate(candles, ema200, ema20, atr, atrSma, rsi, volSma, config, split, candles.length);
   const walkForward: WalkForwardSlice[] = [
     {
       label: 'In-Sample (70%)',
@@ -174,11 +196,12 @@ export async function runProfitFirstBacktest(
     },
   ];
 
-  // ── Monte-Carlo (resample trade sequence 1000x) ──
   onProgress('몬테카를로 시뮬레이션...');
   const monteCarlo = runMonteCarlo(result.trades, config.initialCash, 1000);
 
-  return { ...result, walkForward, monteCarlo, candles };
+  const monthlyReturns = computeMonthlyReturns(result.equityCurve);
+
+  return { ...result, walkForward, monteCarlo, monthlyReturns, candles };
 }
 
 // ──────────────────────────────────────────
@@ -189,19 +212,22 @@ function simulate(
   ema200: number[],
   ema20: number[],
   atr: number[],
+  atrSma: number[],
   rsi: number[],
   volSma: number[],
   config: PFBacktestConfig,
   from: number,
   to: number
-): Omit<PFBacktestResult, 'walkForward' | 'monteCarlo' | 'candles'> {
+): Omit<PFBacktestResult, 'walkForward' | 'monteCarlo' | 'monthlyReturns' | 'candles'> {
   const trades: PFTrade[] = [];
   let cash = config.initialCash;
   let position: OpenPos | null = null;
   let lastExitIdx = -999;
-  const equityCurve: { date: string; equity: number; bh: number }[] = [];
+  let lossStreak = 0;
+  const equityCurve: { date: string; equity: number; bh: number; drawdownPct: number }[] = [];
+  let runningPeak = config.initialCash;
 
-  const startIdx = Math.max(from, 200); // EMA200 웜업 보장 (caller가 이미 webwarm 처리하지만 안전)
+  const startIdx = Math.max(from, 200);
   const endIdx = Math.min(to, candles.length - 1);
   const startPrice = candles[startIdx]?.open ?? candles[0].open;
 
@@ -217,18 +243,24 @@ function simulate(
 
     // ── Manage existing position ──
     if (position) {
-      // Update trailing anchor & SL
-      if (position.side === 'LONG') {
-        if (cur.high > position.trailAnchor) {
-          position.trailAnchor = cur.high;
-          const newSl = position.trailAnchor - a * config.trailAtrMult;
-          if (newSl > position.sl) position.sl = newSl;
-        }
-      } else {
-        if (cur.low < position.trailAnchor) {
-          position.trailAnchor = cur.low;
-          const newSl = position.trailAnchor + a * config.trailAtrMult;
-          if (newSl < position.sl) position.sl = newSl;
+      // 트레일링: 진입 후 +ATR×TRAIL_ACTIVATE_ATR 도달했을 때만 발동
+      const profitDist = position.side === 'LONG'
+        ? cur.high - position.entry
+        : position.entry - cur.low;
+      const trailActive = profitDist >= a * TRAIL_ACTIVATE_ATR;
+      if (trailActive) {
+        if (position.side === 'LONG') {
+          if (cur.high > position.trailAnchor) {
+            position.trailAnchor = cur.high;
+            const newSl = position.trailAnchor - a * config.trailAtrMult;
+            if (newSl > position.sl) position.sl = newSl;
+          }
+        } else {
+          if (cur.low < position.trailAnchor) {
+            position.trailAnchor = cur.low;
+            const newSl = position.trailAnchor + a * config.trailAtrMult;
+            if (newSl < position.sl) position.sl = newSl;
+          }
         }
       }
 
@@ -305,18 +337,20 @@ function simulate(
           : position.entry / exit - 1;
         const pnl = position.remainingSize * pct - position.remainingSize * FEE * 2;
         cash += pnl;
+        const pnlPct = Number((pct * 100 - 0.18).toFixed(3));
         trades.push({
           entryDate: position.entryDate,
           exitDate: new Date(next.time).toISOString(),
           side: position.side,
           entryPrice: position.entry,
           exitPrice: exit,
-          pnlPct: Number((pct * 100 - 0.18).toFixed(3)),
+          pnlPct,
           pnlUsdt: Number(pnl.toFixed(2)),
           signalLabel: position.label,
           exitReason: reason,
           holdingHours: Math.round((next.time - position.entryTime) / 3_600_000),
         });
+        if (pnlPct <= 0) lossStreak++; else lossStreak = 0;
         position = null;
         lastExitIdx = i;
       }
@@ -324,15 +358,13 @@ function simulate(
 
     // ── New entry ──
     if (!position) {
-      // Cooldown after recent exit (avoid whipsaw re-entry)
       if (i - lastExitIdx < COOLDOWN_BARS) continue;
 
-      // Strict score threshold — v3: 사실상 STRONG만 통과
       const goesLong  = sig.label === 'STRONG_BUY'  || (sig.label === 'BUY'  && sig.score >= MIN_SCORE_BUY);
       const goesShort = sig.label === 'STRONG_SELL' || (sig.label === 'SELL' && sig.score <= MIN_SCORE_SELL);
       if (!goesLong && !goesShort) continue;
 
-      // Trend filter — EMA200 + slope must agree
+      // EMA200 추세 필터 + slope
       const e200 = ema200[i];
       const e200Prev = ema200[i - 10];
       if (config.useTrendFilter && isFinite(e200) && isFinite(e200Prev)) {
@@ -341,23 +373,29 @@ function simulate(
         if (goesShort && (cur.close > e200 || slopeUp)) continue;
       }
 
-      // ── v3 추가 필터 ──
-      // 1) RSI 과열/과냉 추격 차단
+      // v4 — RSI 밴드 필터: 롱 40~70, 숏 30~60
       const r = rsi[i];
       if (isFinite(r)) {
-        if (goesLong && r > RSI_LONG_MAX) continue;
-        if (goesShort && r < RSI_SHORT_MIN) continue;
+        if (goesLong && (r < RSI_LONG_MIN || r > RSI_LONG_MAX)) continue;
+        if (goesShort && (r < RSI_SHORT_MIN || r > RSI_SHORT_MAX)) continue;
       }
-      // 2) 거래량 빈약 진입 차단
+
+      // v4 — ATR 변동성 레짐 필터 (횡보장 차단)
+      const aSma = atrSma[i];
+      if (isFinite(aSma) && aSma > 0 && a < aSma * ATR_REGIME_MULT) continue;
+
+      // 거래량 빈약 차단
       const vs = volSma[i];
       if (isFinite(vs) && vs > 0 && cur.volume < vs * VOL_FILTER_MULT) continue;
-      // 3) FOMO 차단: EMA20에서 ATR×N 이상 벗어난 캔들에 진입 금지
+
+      // FOMO (EMA20 거리 차단)
       const e20 = ema20[i];
       if (isFinite(e20) && a > 0) {
         const dist = Math.abs(cur.close - e20) / a;
         if (dist > MAX_EXPANSION_ATR) continue;
       }
-      // 4) 신호 2봉 지속 확인 (이전 봉도 같은 방향)
+
+      // 신호 2봉 지속
       const prevSig = computeUnifiedSignal(candles.slice(0, i), candles[i - 1].close);
       if (prevSig) {
         if (goesLong && !(prevSig.label === 'BUY' || prevSig.label === 'STRONG_BUY')) continue;
@@ -365,26 +403,34 @@ function simulate(
       }
 
       const side: 'LONG' | 'SHORT' = goesLong ? 'LONG' : 'SHORT';
-      const sizingPct = sig.label === 'STRONG_BUY' || sig.label === 'STRONG_SELL'
-        ? config.strongSize
-        : config.normalSize;
+
+      // v4 — SL = ATR×1.5, TP = ATR×3.0
       const rawEntry = next.open;
       const entry = side === 'LONG' ? rawEntry * (1 + SLIP) : rawEntry * (1 - SLIP);
+      const slDist = a * SL_ATR_MULT;
+      const tpDist = a * TP_ATR_MULT;
+      const sl = side === 'LONG' ? entry - slDist : entry + slDist;
+      const tp1 = side === 'LONG' ? entry + tpDist : entry - tpDist;
+
+      // v4 — Kelly 사이징 (롤링 통계 기반, 10% 상한)
+      const kellyPct = computeKellyPct(trades);
+      let sizingPct = Math.min(KELLY_CAP, Math.max(KELLY_MIN, kellyPct));
+      // 강신호 보너스 (Kelly 위에 +30%, 단 상한 유지)
+      if (sig.label === 'STRONG_BUY' || sig.label === 'STRONG_SELL') {
+        sizingPct = Math.min(KELLY_CAP, sizingPct * 1.3);
+      }
+      // 연속 3패 이상이면 사이즈 50% 축소
+      if (lossStreak >= LOSS_STREAK_REDUCE_AT) sizingPct *= 0.5;
+
       const size = cash * sizingPct;
       if (size < 10) continue;
-      // v3: SL 타이트하게 (ATR×1.2) — 빠른 컷 + 큰 RR
-      const slDist = a * 1.2;
-      const sl = side === 'LONG' ? Math.min(sig.sl, entry - slDist) : Math.max(sig.sl, entry + slDist);
-      // TP1 = 2R (v2의 1.5R → 2R로 상향, 부분익절 + 트레일로 평균 R 극대화)
-      const risk = Math.abs(entry - sl);
-      const tp1 = side === 'LONG' ? entry + risk * 2.0 : entry - risk * 2.0;
 
       position = {
         side,
         entry,
         initialSize: size,
         remainingSize: size,
-        trailAnchor: side === 'LONG' ? next.open : next.open,
+        trailAnchor: next.open,
         sl,
         tp1,
         tp1Hit: false,
@@ -394,18 +440,21 @@ function simulate(
       };
     }
 
-    // Equity snapshot daily
-    if (i % 6 === 0 || i === endIdx - 1) { // 4H봉 × 6 = 일봉 스냅샷
+    // Equity snapshot (일봉)
+    if (i % 6 === 0 || i === endIdx - 1) {
       let mark = cash;
       if (position) {
         const dir = position.side === 'LONG' ? 1 : -1;
         mark = cash + position.remainingSize * ((cur.close - position.entry) / position.entry) * dir;
       }
+      if (mark > runningPeak) runningPeak = mark;
+      const dd = ((runningPeak - mark) / runningPeak) * 100;
       const bh = config.initialCash * (cur.close / startPrice);
       equityCurve.push({
         date: new Date(cur.time).toISOString().slice(0, 10),
         equity: Number(mark.toFixed(2)),
         bh: Number(bh.toFixed(2)),
+        drawdownPct: Number(dd.toFixed(2)),
       });
     }
   }
@@ -488,7 +537,7 @@ function simulate(
 // ──────────────────────────────────────────
 function runMonteCarlo(trades: PFTrade[], initial: number, n: number): MonteCarloResult {
   if (trades.length < 5) {
-    return { median: 0, worst5: 0, best5: 0, probProfit: 0, worstDrawdown: 0 };
+    return { median: 0, worst5: 0, best5: 0, p25: 0, p75: 0, probProfit: 0, worstDrawdown: 0 };
   }
   const finals: number[] = [];
   const dds: number[] = [];
@@ -500,8 +549,7 @@ function runMonteCarlo(trades: PFTrade[], initial: number, n: number): MonteCarl
     let maxDD = 0;
     for (let k = 0; k < pcts.length; k++) {
       const r = pcts[Math.floor(Math.random() * pcts.length)];
-      // Simplified: full equity exposed each trade
-      eq = eq * (1 + r * 0.5); // half exposure to mimic sizing
+      eq = eq * (1 + r * 0.5);
       if (eq > peak) peak = eq;
       const dd = ((peak - eq) / peak) * 100;
       if (dd > maxDD) maxDD = dd;
@@ -515,11 +563,58 @@ function runMonteCarlo(trades: PFTrade[], initial: number, n: number): MonteCarl
   const profitable = finals.filter(f => f > initial).length;
   return {
     median: Number(((pct(finals, 0.5) / initial - 1) * 100).toFixed(2)),
+    p25:    Number(((pct(finals, 0.25) / initial - 1) * 100).toFixed(2)),
+    p75:    Number(((pct(finals, 0.75) / initial - 1) * 100).toFixed(2)),
     worst5: Number(((pct(finals, 0.05) / initial - 1) * 100).toFixed(2)),
-    best5: Number(((pct(finals, 0.95) / initial - 1) * 100).toFixed(2)),
+    best5:  Number(((pct(finals, 0.95) / initial - 1) * 100).toFixed(2)),
     probProfit: Number(((profitable / n) * 100).toFixed(1)),
     worstDrawdown: Number(pct(dds, 0.95).toFixed(2)),
   };
+}
+
+// ──────────────────────────────────────────
+// Kelly Criterion — 롤링 통계 기반 (최근 30거래)
+// ──────────────────────────────────────────
+function computeKellyPct(trades: PFTrade[]): number {
+  if (trades.length < 8) return KELLY_MIN * 2; // 워밍업: 4%
+  const recent = trades.slice(-30);
+  const wins = recent.filter(t => t.pnlPct > 0);
+  const losses = recent.filter(t => t.pnlPct <= 0);
+  if (!wins.length || !losses.length) return KELLY_MIN * 2;
+  const w = wins.length / recent.length;
+  const avgWin = wins.reduce((s, t) => s + t.pnlPct, 0) / wins.length;
+  const avgLoss = Math.abs(losses.reduce((s, t) => s + t.pnlPct, 0) / losses.length);
+  if (avgWin <= 0 || avgLoss <= 0) return KELLY_MIN * 2;
+  const b = avgWin / avgLoss;       // 승/패 비율
+  // f* = W - (1-W)/b ; 1/4 Kelly로 보수적
+  const kelly = (w - (1 - w) / b) * 0.25;
+  return isFinite(kelly) ? kelly : KELLY_MIN;
+}
+
+// ──────────────────────────────────────────
+// 월별 수익률 (equity 기반)
+// ──────────────────────────────────────────
+function computeMonthlyReturns(
+  curve: { date: string; equity: number }[]
+): MonthlyReturn[] {
+  if (curve.length < 2) return [];
+  const byMonth = new Map<string, { first: number; last: number }>();
+  for (const p of curve) {
+    const key = p.date.slice(0, 7); // YYYY-MM
+    const cur = byMonth.get(key);
+    if (!cur) byMonth.set(key, { first: p.equity, last: p.equity });
+    else cur.last = p.equity;
+  }
+  return Array.from(byMonth.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, v]) => {
+      const [y, m] = key.split('-').map(Number);
+      return {
+        year: y,
+        month: m,
+        returnPct: Number(((v.last / v.first - 1) * 100).toFixed(2)),
+      };
+    });
 }
 
 // ──────────────────────────────────────────
