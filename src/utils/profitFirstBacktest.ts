@@ -243,18 +243,24 @@ function simulate(
 
     // ── Manage existing position ──
     if (position) {
-      // Update trailing anchor & SL
-      if (position.side === 'LONG') {
-        if (cur.high > position.trailAnchor) {
-          position.trailAnchor = cur.high;
-          const newSl = position.trailAnchor - a * config.trailAtrMult;
-          if (newSl > position.sl) position.sl = newSl;
-        }
-      } else {
-        if (cur.low < position.trailAnchor) {
-          position.trailAnchor = cur.low;
-          const newSl = position.trailAnchor + a * config.trailAtrMult;
-          if (newSl < position.sl) position.sl = newSl;
+      // 트레일링: 진입 후 +ATR×TRAIL_ACTIVATE_ATR 도달했을 때만 발동
+      const profitDist = position.side === 'LONG'
+        ? cur.high - position.entry
+        : position.entry - cur.low;
+      const trailActive = profitDist >= a * TRAIL_ACTIVATE_ATR;
+      if (trailActive) {
+        if (position.side === 'LONG') {
+          if (cur.high > position.trailAnchor) {
+            position.trailAnchor = cur.high;
+            const newSl = position.trailAnchor - a * config.trailAtrMult;
+            if (newSl > position.sl) position.sl = newSl;
+          }
+        } else {
+          if (cur.low < position.trailAnchor) {
+            position.trailAnchor = cur.low;
+            const newSl = position.trailAnchor + a * config.trailAtrMult;
+            if (newSl < position.sl) position.sl = newSl;
+          }
         }
       }
 
