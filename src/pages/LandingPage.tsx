@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, BarChart3, Bot, Bell, Layers, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, Bot, Bell, Layers, ShieldCheck, Zap, Eye } from "lucide-react";
 
 const features = [
   { icon: Layers, title: "6대 이론 분석", desc: "엘리어트, ICT, 와이코프, 하모닉, 피보나치, 다우 — 실제 캔들로 합의점수 산출" },
@@ -31,9 +31,10 @@ export default function LandingPage() {
             AutoBot Trading
           </Link>
           <div className="flex items-center gap-3">
+            <Link to="/reviewer"><Button variant="ghost" size="sm" className="text-amber-300 hover:text-amber-200"><Eye className="h-4 w-4 mr-1" /> 검토자 모드</Button></Link>
             <Link to="/pricing"><Button variant="ghost" size="sm">요금제</Button></Link>
-            <Link to="/auth"><Button variant="outline" size="sm">로그인</Button></Link>
-            <Link to="/auth"><Button size="sm">무료 시작</Button></Link>
+            <Link to="/dashboard"><Button variant="outline" size="sm">데모 체험</Button></Link>
+            <Link to="/dashboard"><Button size="sm">무료 시작</Button></Link>
           </div>
         </div>
       </nav>
@@ -48,9 +49,10 @@ export default function LandingPage() {
           엘리어트·ICT·와이코프·하모닉·피보나치·다우 이론을 실시간 OHLCV 데이터로 분석하여
           LONG/SHORT 신호를 자동 생성하고 거래소에 직접 주문합니다.
         </p>
-        <div className="flex items-center justify-center gap-4">
-          <Link to="/auth"><Button size="lg" className="gap-2">지금 무료로 시작 <ArrowRight className="h-4 w-4" /></Button></Link>
-          <Link to="/pricing"><Button size="lg" variant="outline">요금제 보기</Button></Link>
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          <Link to="/dashboard"><Button size="lg" className="gap-2">지금 무료로 시작 <ArrowRight className="h-4 w-4" /></Button></Link>
+          <Link to="/reviewer"><Button size="lg" variant="outline" className="gap-2 border-amber-500/40 text-amber-300 hover:bg-amber-500/10"><Eye className="h-4 w-4" /> 외부 검토자용 데모 보기</Button></Link>
+          <Link to="/pricing"><Button size="lg" variant="ghost">요금제 보기</Button></Link>
         </div>
       </section>
 
