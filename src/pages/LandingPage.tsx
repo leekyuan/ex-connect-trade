@@ -107,8 +107,15 @@ export default function LandingPage() {
         </Card>
       </section>
 
-      <footer className="border-t border-border/50 py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} AutoBot Trading. 투자에는 손실 위험이 따릅니다.
+      <footer className="border-t border-border/50 py-8 text-center text-sm text-muted-foreground space-y-2">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          <Link to="/reviewer" className="hover:text-foreground">검토자 허브</Link>
+          <Link to="/disclaimer" className="hover:text-foreground">위험 고지</Link>
+          <Link to="/api-permissions" className="hover:text-foreground">API 권한</Link>
+          <Link to="/risk-limits" className="hover:text-foreground">리스크 제한</Link>
+          <Link to="/pricing" className="hover:text-foreground">요금제</Link>
+        </div>
+        <div>© {new Date().getFullYear()} AutoBot Trading. 투자에는 손실 위험이 따릅니다.</div>
       </footer>
     </div>
   );
