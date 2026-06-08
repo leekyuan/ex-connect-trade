@@ -118,6 +118,7 @@ export function PaperTradingPanel() {
         <div className="flex items-center gap-2">
           <Wallet className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">매매 패널</h3>
+          {demo && <DemoBadge />}
         </div>
         {mode === 'paper' && (
           <button
