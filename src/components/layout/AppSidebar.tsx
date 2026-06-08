@@ -9,6 +9,11 @@ import {
   TrendingUp,
   Calculator,
   Network,
+  Eye,
+  Shield,
+  ShieldAlert,
+  KeyRound,
+  Gauge,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -26,6 +31,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useUnreadAlerts } from "@/hooks/useUnreadAlerts";
+import { useRole } from "@/hooks/useRole";
+
+const reviewerItems = [
+  { title: "검토자 허브", url: "/reviewer", icon: Eye },
+];
 
 const mainItems = [
   { title: "대시보드", url: "/dashboard", icon: LayoutDashboard },
@@ -36,6 +46,12 @@ const mainItems = [
   { title: "상관관계", url: "/correlation", icon: Network },
   { title: "포트폴리오", url: "/portfolio", icon: PieChart },
   { title: "알림 센터", url: "/alerts", icon: Bell, badgeKey: "alerts" as const },
+];
+
+const helpItems = [
+  { title: "위험 고지", url: "/disclaimer", icon: ShieldAlert },
+  { title: "API 권한 안내", url: "/api-permissions", icon: KeyRound },
+  { title: "리스크 제한", url: "/risk-limits", icon: Gauge },
 ];
 
 const settingsItems = [
