@@ -19,6 +19,19 @@ interface CatalystResult {
   fetchedAt: string;
 }
 
+function emptyResult(symbol: string, summary: string): CatalystResult {
+  return {
+    symbol,
+    bullish: [],
+    bearish: [],
+    neutral: [],
+    summary,
+    sentiment: 'neutral',
+    sources: [],
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -30,23 +43,25 @@ Deno.serve(async (req) => {
     const newsRes = await fetch(newsUrl);
     if (!newsRes.ok) throw new Error(`news upstream ${newsRes.status}`);
     const newsJson = await newsRes.json();
-    const raw: any[] = newsJson?.Data ?? [];
+    const raw: NewsItem[] = Array.isArray(newsJson?.Data) ? newsJson.Data : [];
+
+    if (!raw.length) {
+      const upstreamMessage = typeof newsJson?.Message === 'string'
+        ? newsJson.Message
+        : `${sym} 관련 24시간 내 주요 뉴스가 감지되지 않았습니다.`;
+
+      return Response.json(emptyResult(sym, upstreamMessage), { headers: corsHeaders });
+    }
 
     // 24h filter
     const dayAgo = Date.now() / 1000 - 24 * 3600;
     const recent = raw.filter((n) => n.published_on >= dayAgo).slice(0, 12);
 
     if (!recent.length) {
-      return Response.json({
-        symbol: sym,
-        bullish: [],
-        bearish: [],
-        neutral: [],
-        summary: `${sym} 관련 24시간 내 주요 뉴스가 감지되지 않았습니다.`,
-        sentiment: 'neutral',
-        sources: [],
-        fetchedAt: new Date().toISOString(),
-      } satisfies CatalystResult, { headers: corsHeaders });
+      return Response.json(
+        emptyResult(sym, `${sym} 관련 24시간 내 주요 뉴스가 감지되지 않았습니다.`),
+        { headers: corsHeaders },
+      );
     }
 
     const headlines = recent.map((n, i) => `${i + 1}. [${n.source}] ${n.title}`).join('\n');
