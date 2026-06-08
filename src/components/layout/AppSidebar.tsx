@@ -9,6 +9,11 @@ import {
   TrendingUp,
   Calculator,
   Network,
+  Eye,
+  Shield,
+  ShieldAlert,
+  KeyRound,
+  Gauge,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -26,6 +31,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useUnreadAlerts } from "@/hooks/useUnreadAlerts";
+import { useRole } from "@/hooks/useRole";
+
+const reviewerItems = [
+  { title: "검토자 허브", url: "/reviewer", icon: Eye },
+];
 
 const mainItems = [
   { title: "대시보드", url: "/dashboard", icon: LayoutDashboard },
@@ -38,6 +48,12 @@ const mainItems = [
   { title: "알림 센터", url: "/alerts", icon: Bell, badgeKey: "alerts" as const },
 ];
 
+const helpItems = [
+  { title: "위험 고지", url: "/disclaimer", icon: ShieldAlert },
+  { title: "API 권한 안내", url: "/api-permissions", icon: KeyRound },
+  { title: "리스크 제한", url: "/risk-limits", icon: Gauge },
+];
+
 const settingsItems = [
   { title: "설정", url: "/settings", icon: Settings },
 ];
@@ -47,6 +63,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const unread = useUnreadAlerts();
+  const { isAdmin } = useRole();
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
@@ -70,6 +87,34 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>검토자</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {reviewerItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/admin")}>
+                    <NavLink to="/admin" className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <Shield className="h-4 w-4" />
+                      {!collapsed && <span>관리자</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <SidebarGroupLabel>메인</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -99,6 +144,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>도움말</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {helpItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
 
         <SidebarGroup>
           <SidebarGroupLabel>설정</SidebarGroupLabel>

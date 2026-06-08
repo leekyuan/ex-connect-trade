@@ -10,6 +10,8 @@ import { Link } from 'react-router-dom';
 import {
   loadCreds, getFuturesBalance, placeMarketOrder, placeSLTP, setLeverage as setExchLeverage,
 } from '@/utils/exchangeApi';
+import { useDemoMode } from '@/contexts/DemoModeContext';
+import { DemoBadge } from '@/components/common/DemoBadge';
 
 const COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'MATIC'];
 
@@ -17,6 +19,7 @@ type TradeMode = 'paper' | 'live';
 
 export function PaperTradingPanel() {
   const { balance, positions, realizedPnl, buy, sell, reset, initialBalance } = usePaperTrading();
+  const { demo } = useDemoMode();
   const [mode, setMode] = useState<TradeMode>('paper');
   const [symbol, setSymbol] = useState('BTC');
   const [qty, setQty] = useState<string>('0.01');
@@ -75,6 +78,7 @@ export function PaperTradingPanel() {
 
   // ── LIVE order ──
   const liveOrder = async (side: 'BUY' | 'SELL') => {
+    if (demo) return toast.error('🚫 데모 모드에서는 실주문 차단됨 — 모의매매 탭을 사용하세요');
     if (!liveReady) return toast.error('API 키 미설정');
     if (qtyNum <= 0) return toast.error('수량을 확인하세요');
     setBusy(true);
@@ -114,6 +118,7 @@ export function PaperTradingPanel() {
         <div className="flex items-center gap-2">
           <Wallet className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">매매 패널</h3>
+          {demo && <DemoBadge />}
         </div>
         {mode === 'paper' && (
           <button
