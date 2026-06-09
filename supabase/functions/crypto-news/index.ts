@@ -36,19 +36,16 @@ function emptyResult(symbol: string, summary: string): CatalystResult {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    // Require authenticated user — prevents anonymous abuse of AI/news quotas
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
-    }
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: claimsData, error: claimsErr } = await supabaseAuth.auth.getUser();
-    if (claimsErr || !claimsData?.user?.id) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    let isAuthenticated = false;
+    if (authHeader?.startsWith('Bearer ')) {
+      const supabaseAuth = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: claimsData, error: claimsErr } = await supabaseAuth.auth.getUser();
+      isAuthenticated = !claimsErr && !!claimsData?.user?.id;
     }
 
     const { symbol } = await req.json().catch(() => ({ symbol: 'BTC' }));
@@ -80,9 +77,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (!isAuthenticated) {
+      return Response.json({
+        symbol: sym,
+        bullish: [],
+        bearish: [],
+        neutral: [],
+        summary: `${sym} 관련 최근 뉴스 ${recent.length}건을 불러왔습니다. 로그인하면 AI 분류 요약까지 함께 볼 수 있습니다.`,
+        sentiment: 'neutral',
+        sources: recent.slice(0, 8).map((n) => ({
+          title: n.title,
+          url: n.url,
+          source: n.source,
+          time: new Date(n.published_on * 1000).toISOString(),
+        })),
+        fetchedAt: new Date().toISOString(),
+      } satisfies CatalystResult, { headers: corsHeaders });
+    }
+
     const headlines = recent.map((n, i) => `${i + 1}. [${n.source}] ${n.title}`).join('\n');
 
-    // Lovable AI summarize + classify
+    // Only signed-in users get AI summarization/classification to protect quota usage.
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!apiKey) throw new Error('LOVABLE_API_KEY missing');
 
