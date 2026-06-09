@@ -251,8 +251,8 @@ export default function MarketAnalysisPage() {
           </div>
         )}
 
-        {/* ── 차트 영역 (Neo-Wave ↔ TradingView) ── */}
-        <div className="rounded-xl border border-border bg-card p-2 flex items-center gap-2">
+        {/* ── 차트 영역 (Signal Chart / TradingView Advanced / Indicator Lab) ── */}
+        <div className="rounded-xl border border-border bg-card p-2 flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setChartView('neowave')}
             className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
@@ -260,8 +260,9 @@ export default function MarketAnalysisPage() {
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                 : 'bg-muted text-muted-foreground hover:bg-muted/70'
             }`}
+            title="진입가/손절/TP가 표시되는 실전 매매 차트 (기본)"
           >
-            <Waves className="h-3.5 w-3.5" /> Neo-Wave 분석 차트
+            <Waves className="h-3.5 w-3.5" /> Signal Chart · 실전 타점
           </button>
           <button
             onClick={() => setChartView('tv')}
@@ -270,8 +271,9 @@ export default function MarketAnalysisPage() {
                 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
                 : 'bg-muted text-muted-foreground hover:bg-muted/70'
             }`}
+            title="고급 사용자용 — 지표를 자유롭게 추가"
           >
-            <BarChart3 className="h-3.5 w-3.5" /> TradingView (지표 자유 추가)
+            <BarChart3 className="h-3.5 w-3.5" /> TradingView Advanced
           </button>
           <button
             onClick={() => setChartView('custom')}
@@ -280,8 +282,9 @@ export default function MarketAnalysisPage() {
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                 : 'bg-muted text-muted-foreground hover:bg-muted/70'
             }`}
+            title="프리셋 + 개별 지표 토글로 실험 가능"
           >
-            <CandlestickChart className="h-3.5 w-3.5" /> Custom Chart (멀티거래소)
+            <CandlestickChart className="h-3.5 w-3.5" /> Indicator Lab
           </button>
           {chartView === 'neowave' && neo.live && (
             <span className="ml-auto text-[10px] text-emerald-400 flex items-center gap-1">
@@ -295,29 +298,29 @@ export default function MarketAnalysisPage() {
           <div>
             {chartView === 'neowave' ? (
               neo.loading ? (
-                <Skeleton className="h-[560px] w-full rounded-xl" />
+                <Skeleton className="h-[640px] w-full rounded-xl" />
               ) : (
                 <NeoWaveChart
                   candles={neo.candles}
                   result={neo.result}
                   highlightedScenario={scenarioId}
-                  height={560}
+                  height={640}
                 />
               )
             ) : chartView === 'tv' ? (
-              <div className="overflow-hidden">
+              <div className="overflow-hidden min-h-[640px]">
                 <SmartTradingViewChart
                   baseSymbol={symbol}
                   interval={activeTf.tv}
                   isFutures
-                  height={560}
+                  height={680}
                 />
               </div>
             ) : (
               <CustomLightweightChart
                 symbol={symbol}
                 interval={activeTf.binance}
-                height={560}
+                height={640}
               />
             )}
           </div>
