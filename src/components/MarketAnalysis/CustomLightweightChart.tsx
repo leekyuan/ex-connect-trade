@@ -424,12 +424,18 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
               {meta.exchange}{meta.fallback ? ' (폴백)' : ''}
             </span>
           )}
-          <button
-            onClick={() => setToggles(DEFAULT_TOGGLES)}
-            className="ml-auto text-[10px] px-2 py-0.5 rounded border border-border bg-background hover:bg-muted"
-          >
-            기본값
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground mr-1">프리셋</span>
+            {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setToggles(PRESETS[k].toggles)}
+                className="text-[10px] px-2 py-0.5 rounded border border-border bg-background hover:bg-muted hover:text-foreground text-muted-foreground"
+              >
+                {PRESETS[k].label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1">
           {groups.map(g => (
