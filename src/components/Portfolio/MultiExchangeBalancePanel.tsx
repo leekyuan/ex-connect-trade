@@ -1,14 +1,15 @@
 /**
  * 멀티거래소 잔고 조회 패널
- * - localStorage(cryptoedge_api_*)에 저장된 키를 읽어 잔고를 조회합니다.
- * - Binance는 binance-proxy edge function으로 실제 잔고 조회.
- * - OKX/Bybit/Bitget/Gate.io는 현재 브라우저-사이드 서명 미지원으로 "키 저장됨" 상태만 표시합니다.
+ * - 서버측 exchange_api_keys (RLS) 에 저장된 키로 잔고를 조회합니다.
+ * - Binance는 binance-proxy edge function 으로 실제 잔고 조회.
+ * - OKX/Bybit/Bitget/Gate.io 는 현재 백엔드 프록시 미지원으로 "키 저장됨" 만 표시.
  */
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw, Wallet, AlertCircle } from "lucide-react";
 import { getFuturesBalance } from "@/utils/exchangeApi";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ExMeta { id: string; name: string; emoji: string; }
 const EXCHANGES: ExMeta[] = [
@@ -26,14 +27,6 @@ interface Row {
   error?: string;
 }
 
-function loadKeys(id: string): { apiKey?: string; secretKey?: string } {
-  try {
-    const raw = localStorage.getItem(`cryptoedge_api_${id}`);
-    if (!raw) return {};
-    return JSON.parse(raw);
-  } catch { return {}; }
-}
-
 export default function MultiExchangeBalancePanel() {
   const [rows, setRows] = useState<Row[]>(
     EXCHANGES.map(ex => ({ ...ex, status: 'idle' }))
@@ -42,10 +35,14 @@ export default function MultiExchangeBalancePanel() {
 
   const refresh = async () => {
     setRefreshing(true);
+    const { data: keyRows } = await (supabase as any)
+      .from('exchange_api_keys')
+      .select('exchange');
+    const hasKey = new Set<string>((keyRows ?? []).map((r: any) => r.exchange));
+
     const next: Row[] = [];
     for (const ex of EXCHANGES) {
-      const keys = loadKeys(ex.id);
-      if (!keys.apiKey || !keys.secretKey) {
+      if (!hasKey.has(ex.id)) {
         next.push({ ...ex, status: 'unsaved' });
         continue;
       }
@@ -54,7 +51,7 @@ export default function MultiExchangeBalancePanel() {
         continue;
       }
       try {
-        const bal = await getFuturesBalance({ apiKey: keys.apiKey, apiSecret: keys.secretKey });
+        const bal = await getFuturesBalance();
         next.push({ ...ex, status: 'connected', balance: bal });
       } catch (e: any) {
         next.push({ ...ex, status: 'error', error: e?.message ?? String(e) });

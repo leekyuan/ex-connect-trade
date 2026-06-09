@@ -6,16 +6,12 @@ export type AppRole = "admin" | "moderator" | "user";
 
 /**
  * Reads the current user's roles from the public.user_roles table.
- * Returns isAdmin / isModerator helpers. In demo/reviewer mode the
- * URL ?admin=1 flag promotes the visitor to admin so external
- * reviewers can preview the admin dashboard without a real role row.
+ * Role checks are server-side only — no URL/query-string bypass.
  */
 export function useRole() {
   const { user } = useAuth();
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const urlAdmin = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";
 
   useEffect(() => {
     let alive = true;
@@ -33,7 +29,7 @@ export function useRole() {
     return () => { alive = false; };
   }, [user]);
 
-  const isAdmin = urlAdmin || roles.includes("admin");
+  const isAdmin = roles.includes("admin");
   const isModerator = isAdmin || roles.includes("moderator");
   return { roles, isAdmin, isModerator, loading };
 }
