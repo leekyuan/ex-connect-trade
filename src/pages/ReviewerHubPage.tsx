@@ -32,7 +32,7 @@ const CARDS: ReviewCard[] = [
   { to: "/accuracy", icon: Target, title: "신호 정확도", purpose: "과거 신호 적중률 추적", expect: "이론별 적중률 차트", tag: "core" },
   { to: "/settings", icon: Settings, title: "설정", purpose: "거래소 API·텔레그램·전략 가중치", expect: "데모 모드에서 API 입력 차단", tag: "core" },
 
-  { to: "/admin", icon: Shield, title: "관리자 대시보드", purpose: "가입자·신호·오류로그·시스템 상태", expect: "?admin=1 쿼리스트링으로 임시 권한 부여", scenario: "/reviewer 에서 '관리자 권한 부여' 클릭", tag: "admin" },
+  { to: "/admin", icon: Shield, title: "관리자 대시보드", purpose: "가입자·신호·오류로그·시스템 상태", expect: "user_roles 테이블에 admin 권한이 부여된 계정만 접근 가능", scenario: "관리자 계정으로 로그인 후 /admin 이동", tag: "admin" },
 
   { to: "/disclaimer", icon: ShieldAlert, title: "위험 고지", purpose: "투자 원금 손실·레버리지 위험 안내", expect: "법적 고지 전문", tag: "legal" },
   { to: "/api-permissions", icon: KeyRound, title: "API 권한 안내", purpose: "거래소 키 발급 시 권한 가이드", expect: "Withdraw 금지·IP 화이트리스트", tag: "legal" },
@@ -54,8 +54,9 @@ export default function ReviewerHubPage() {
   useEffect(() => { document.title = "검토자 허브 · CryptoEdge AI"; }, []);
 
   const grantAdmin = () => {
-    window.location.href = "/admin?admin=1";
+    toast.info("관리자 진입은 user_roles 테이블에 admin 역할이 부여된 계정 로그인 후 /admin 으로 이동하세요.");
   };
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -96,7 +97,7 @@ export default function ReviewerHubPage() {
             <div>2. 아래 카드에서 페이지 이동 → 각 카드의 "기대 결과" 와 비교</div>
             <div>3. 자동매매/실주문은 데모 모드에서 모두 차단됨 (시뮬레이션 로그만 기록)</div>
             <div>4. 거래소 API 키 없이도 페이퍼 트레이딩 패널로 매매 흐름 체험 가능</div>
-            <div>5. "/admin?admin=1" 진입 시 관리자 뷰가 임시 활성화됨</div>
+            <div>5. /admin 진입은 user_roles 테이블에서 admin 권한이 부여된 계정만 가능</div>
           </CardContent>
         </Card>
 
