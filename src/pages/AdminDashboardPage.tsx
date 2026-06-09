@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
         <FeatureLabel
           title="🛡️ 관리자 대시보드 (데모)"
           desc="플랫폼 운영자 전용 뷰 — 사용자/신호/시스템 헬스 모니터링."
-          tip="?admin=1 쿼리스트링으로 임시 진입한 상태입니다. 실제 운영에서는 user_roles 테이블의 admin 권한 필요."
+          tip="user_roles 테이블의 admin 권한이 부여된 계정만 접근 가능합니다."
         />
 
         <div className="flex items-center gap-2">
