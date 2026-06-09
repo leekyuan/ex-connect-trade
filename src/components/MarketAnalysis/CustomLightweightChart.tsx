@@ -26,14 +26,45 @@ interface Toggles {
   fractal: boolean; pivot: boolean; fvg: boolean; ob: boolean; fib: boolean;
 }
 
+// 실전 단순 프리셋 — 매매 판단에 꼭 필요한 지표만 ON
 const DEFAULT_TOGGLES: Toggles = {
   ema5: false, ema10: false, ema20: true, ema50: true, ema200: true,
-  bb: true, supertrend: false,
-  rsi: true, macd: true, stoch: false,
+  bb: false, supertrend: false,
+  rsi: true, macd: false, stoch: false,
   fractal: false, pivot: false, fvg: false, ob: false, fib: false,
 };
 
-const STORAGE_KEY = 'cryptoedge-custom-chart-toggles-v1';
+type PresetKey = 'simple' | 'trend' | 'reversal' | 'smc' | 'all';
+
+const PRESETS: Record<PresetKey, { label: string; toggles: Toggles }> = {
+  simple:   { label: '실전 단순', toggles: { ...DEFAULT_TOGGLES } },
+  trend:    { label: '추세 추종', toggles: {
+    ema5: false, ema10: false, ema20: true, ema50: true, ema200: true,
+    bb: false, supertrend: true,
+    rsi: false, macd: true, stoch: false,
+    fractal: false, pivot: false, fvg: false, ob: false, fib: false,
+  } },
+  reversal: { label: '반전 탐지', toggles: {
+    ema5: false, ema10: false, ema20: true, ema50: false, ema200: true,
+    bb: true, supertrend: false,
+    rsi: true, macd: false, stoch: true,
+    fractal: true, pivot: true, fvg: false, ob: false, fib: true,
+  } },
+  smc:      { label: 'SMC / ICT', toggles: {
+    ema5: false, ema10: false, ema20: false, ema50: true, ema200: true,
+    bb: false, supertrend: false,
+    rsi: false, macd: false, stoch: false,
+    fractal: true, pivot: false, fvg: true, ob: true, fib: true,
+  } },
+  all:      { label: '전체 지표', toggles: {
+    ema5: true, ema10: true, ema20: true, ema50: true, ema200: true,
+    bb: true, supertrend: true,
+    rsi: true, macd: true, stoch: true,
+    fractal: true, pivot: true, fvg: true, ob: true, fib: true,
+  } },
+};
+
+const STORAGE_KEY = 'cryptoedge-custom-chart-toggles-v2'; // v2 — 단순 프리셋 기본
 
 function loadToggles(): Toggles {
   try {
@@ -393,12 +424,18 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
               {meta.exchange}{meta.fallback ? ' (폴백)' : ''}
             </span>
           )}
-          <button
-            onClick={() => setToggles(DEFAULT_TOGGLES)}
-            className="ml-auto text-[10px] px-2 py-0.5 rounded border border-border bg-background hover:bg-muted"
-          >
-            기본값
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground mr-1">프리셋</span>
+            {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setToggles(PRESETS[k].toggles)}
+                className="text-[10px] px-2 py-0.5 rounded border border-border bg-background hover:bg-muted hover:text-foreground text-muted-foreground"
+              >
+                {PRESETS[k].label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1">
           {groups.map(g => (
