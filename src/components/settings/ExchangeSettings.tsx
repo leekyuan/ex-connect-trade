@@ -1,13 +1,18 @@
 /**
- * ExchangeSettings.tsx — 멀티거래소 API 연동 (localStorage 기반)
+ * ExchangeSettings.tsx — 멀티거래소 API 연동
+ *
+ * SECURITY: 모든 API 키/시크릿/패스프레이즈는 RLS 보호된
+ * public.exchange_api_keys 테이블에만 저장됩니다. localStorage에는
+ * 비밀이 저장되지 않습니다.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, ChevronDown, ChevronUp, Trash2, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, EyeOff, ChevronDown, ChevronUp, Trash2, AlertTriangle, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ExchangeMeta {
   id: string;
@@ -24,47 +29,70 @@ const EXCHANGES: ExchangeMeta[] = [
   { id: 'gate',    name: 'Gate.io',         emoji: '🟢', note: 'Futures Trading 권한만 활성화.' },
 ];
 
-const storageKey = (id: string) => `cryptoedge_api_${id}`;
-
-interface ExchangeConfig {
-  apiKey?: string;
-  secretKey?: string;
-  passphrase?: string;
-  connected?: boolean;
-  balance?: string;
-}
-
-function loadConfig(id: string): ExchangeConfig {
-  try { return JSON.parse(localStorage.getItem(storageKey(id)) || '{}'); }
-  catch { return {}; }
-}
-
-function saveConfig(id: string, cfg: ExchangeConfig) {
-  localStorage.setItem(storageKey(id), JSON.stringify(cfg));
-}
-
 function ExchangeCard({ exchange }: { exchange: ExchangeMeta }) {
-  const saved = loadConfig(exchange.id);
-  const [apiKey, setApiKey] = useState(saved.apiKey || '');
-  const [secretKey, setSecretKey] = useState(saved.secretKey || '');
-  const [passphrase, setPassphrase] = useState(saved.passphrase || '');
+  const [apiKey, setApiKey] = useState('');
+  const [secretKey, setSecretKey] = useState('');
+  const [passphrase, setPassphrase] = useState('');
   const [showSecret, setShowSecret] = useState(false);
-  const [connected, setConnected] = useState(!!saved.connected);
-  const [balance, setBalance] = useState(saved.balance || '');
+  const [connected, setConnected] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
   const needsPassphrase = ['okx', 'bitget'].includes(exchange.id);
 
-  const handleSave = () => {
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('exchange_api_keys')
+        .select('id')
+        .eq('exchange', exchange.id)
+        .maybeSingle();
+      if (alive) setConnected(!!data);
+    })();
+    return () => { alive = false; };
+  }, [exchange.id]);
+
+  const handleSave = async () => {
     if (!apiKey || !secretKey) { toast.error('API Key와 Secret을 입력하세요'); return; }
     if (needsPassphrase && !passphrase) { toast.error('Passphrase가 필요합니다'); return; }
-    saveConfig(exchange.id, { apiKey, secretKey, passphrase, connected, balance });
-    toast.success(`${exchange.name} 설정 저장됨`);
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error('로그인이 필요합니다'); return; }
+      const { error } = await (supabase as any)
+        .from('exchange_api_keys')
+        .upsert(
+          {
+            user_id: user.id,
+            exchange: exchange.id,
+            api_key: apiKey,
+            api_secret: secretKey,
+            passphrase: passphrase || null,
+          },
+          { onConflict: 'user_id,exchange' },
+        );
+      if (error) throw error;
+      setConnected(true);
+      setApiKey(''); setSecretKey(''); setPassphrase('');
+      toast.success(`${exchange.name} 설정 저장됨 (서버측 암호 저장소)`);
+    } catch (e: any) {
+      toast.error(`저장 실패: ${e?.message ?? e}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = () => {
-    localStorage.removeItem(storageKey(exchange.id));
-    setApiKey(''); setSecretKey(''); setPassphrase(''); setConnected(false); setBalance('');
-    toast(`${exchange.name} 설정 삭제됨`);
+  const handleDelete = async () => {
+    try {
+      await (supabase as any)
+        .from('exchange_api_keys')
+        .delete()
+        .eq('exchange', exchange.id);
+      setApiKey(''); setSecretKey(''); setPassphrase(''); setConnected(false);
+      toast(`${exchange.name} 설정 삭제됨`);
+    } catch (e: any) {
+      toast.error(`삭제 실패: ${e?.message ?? e}`);
+    }
   };
 
   return (
@@ -77,7 +105,7 @@ function ExchangeCard({ exchange }: { exchange: ExchangeMeta }) {
         <div className="flex-1">
           <div className="text-sm font-medium">{exchange.name}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            {connected && balance ? `✓ 연결됨 · ${balance}` : apiKey ? '키 저장됨 · 미연결' : '미설정'}
+            {connected ? '✓ 키 저장됨' : '미설정'}
           </div>
         </div>
         <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
@@ -93,7 +121,7 @@ function ExchangeCard({ exchange }: { exchange: ExchangeMeta }) {
 
           <div className="space-y-1.5">
             <Label className="text-xs">API Key</Label>
-            <Input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={`${exchange.name} API Key`} className="font-mono text-sm" />
+            <Input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={`${exchange.name} API Key`} className="font-mono text-sm" autoComplete="off" />
           </div>
 
           <div className="space-y-1.5">
@@ -105,6 +133,7 @@ function ExchangeCard({ exchange }: { exchange: ExchangeMeta }) {
                 onChange={e => setSecretKey(e.target.value)}
                 placeholder="Secret Key"
                 className="font-mono text-sm pr-10"
+                autoComplete="off"
               />
               <button type="button" onClick={() => setShowSecret(s => !s)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -116,13 +145,16 @@ function ExchangeCard({ exchange }: { exchange: ExchangeMeta }) {
           {needsPassphrase && (
             <div className="space-y-1.5">
               <Label className="text-xs">Passphrase <span className="text-destructive">*필수</span></Label>
-              <Input type="password" value={passphrase} onChange={e => setPassphrase(e.target.value)} placeholder="API 생성 시 설정한 Passphrase" className="font-mono text-sm" />
+              <Input type="password" value={passphrase} onChange={e => setPassphrase(e.target.value)} placeholder="API 생성 시 설정한 Passphrase" className="font-mono text-sm" autoComplete="off" />
             </div>
           )}
 
           <div className="flex gap-2 pt-1">
-            <Button onClick={handleSave} size="sm" className="flex-1">저장</Button>
-            <Button onClick={handleDelete} variant="outline" size="sm">
+            <Button onClick={handleSave} size="sm" className="flex-1" disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              저장
+            </Button>
+            <Button onClick={handleDelete} variant="outline" size="sm" disabled={!connected}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -185,8 +217,7 @@ export default function ExchangeSettings() {
       <CardHeader>
         <CardTitle className="text-base">거래소 API 연동</CardTitle>
         <p className="text-xs text-muted-foreground">
-          연결된 거래소로 잔고 조회, 자동 주문 실행, 포트폴리오 추적이 가능합니다.
-          API 키는 이 브라우저에만 저장되며 외부로 전송되지 않습니다.
+          API 키는 RLS 보호된 서버측 저장소에만 보관됩니다. 로그인된 본인 이외 누구도 접근할 수 없습니다.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -1,35 +1,68 @@
 /**
  * Binance Futures live trading client (browser-side).
- * All requests are signed by the binance-proxy edge function — the secret
- * never leaves the user's machine in plaintext over public CORS endpoints.
+ *
+ * SECURITY: API secrets are NEVER stored in localStorage and NEVER sent in the
+ * request body. They are persisted in the `exchange_api_keys` table (RLS-protected),
+ * and the `binance-proxy` edge function looks them up server-side using the
+ * caller's verified JWT. localStorage only tracks a non-secret "configured" flag
+ * so the UI can render without an extra round-trip.
  */
 import { supabase } from '@/integrations/supabase/client';
 
-interface Creds { apiKey: string; apiSecret: string; }
+export interface Creds { configured: true }
+
+const FLAG_KEY = 'binance_configured';
 
 export function loadCreds(): Creds | null {
   try {
-    const raw = localStorage.getItem('binance_creds');
-    if (!raw) return null;
-    const obj = JSON.parse(raw) as Creds;
-    if (!obj.apiKey || !obj.apiSecret) return null;
-    return obj;
+    return localStorage.getItem(FLAG_KEY) === '1' ? { configured: true } : null;
   } catch { return null; }
 }
 
-export function saveCreds(c: Creds): void {
-  localStorage.setItem('binance_creds', JSON.stringify(c));
+export async function saveCreds(c: { apiKey: string; apiSecret: string }): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('NOT_AUTHENTICATED');
+  const { error } = await (supabase as any)
+    .from('exchange_api_keys')
+    .upsert(
+      { user_id: user.id, exchange: 'binance', api_key: c.apiKey, api_secret: c.apiSecret },
+      { onConflict: 'user_id,exchange' },
+    );
+  if (error) throw error;
+  try { localStorage.setItem(FLAG_KEY, '1'); } catch {}
 }
 
-export function clearCreds(): void {
-  localStorage.removeItem('binance_creds');
+export async function clearCreds(): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    await (supabase as any)
+      .from('exchange_api_keys')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('exchange', 'binance');
+  }
+  try { localStorage.removeItem(FLAG_KEY); } catch {}
 }
 
-async function call<T>(method: 'GET' | 'POST' | 'DELETE', endpoint: string, params: Record<string, any> = {}, creds?: Creds): Promise<T> {
-  const c = creds ?? loadCreds();
-  if (!c) throw new Error('NO_API_KEY');
+/** Refresh the local "configured" flag from the DB (call once at app start). */
+export async function syncCredsFlag(): Promise<boolean> {
+  const { data, error } = await (supabase as any)
+    .from('exchange_api_keys')
+    .select('id')
+    .eq('exchange', 'binance')
+    .maybeSingle();
+  const has = !!data && !error;
+  try {
+    if (has) localStorage.setItem(FLAG_KEY, '1');
+    else localStorage.removeItem(FLAG_KEY);
+  } catch {}
+  return has;
+}
+
+async function call<T>(method: 'GET' | 'POST' | 'DELETE', endpoint: string, params: Record<string, any> = {}, _creds?: Creds): Promise<T> {
+  // Credentials are resolved server-side from the authenticated user's JWT.
   const { data, error } = await supabase.functions.invoke('binance-proxy', {
-    body: { method, endpoint, params, apiKey: c.apiKey, apiSecret: c.apiSecret },
+    body: { method, endpoint, params },
   });
   if (error) throw error;
   if (data?.code && data?.code < 0) throw new Error(data.msg || 'binance_error');

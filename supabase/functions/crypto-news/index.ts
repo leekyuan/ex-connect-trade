@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 interface NewsItem {
   title: string;
@@ -35,6 +36,23 @@ function emptyResult(symbol: string, summary: string): CatalystResult {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
+    // Require authenticated user — prevents anonymous abuse of AI/news quotas
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    }
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: claimsData, error: claimsErr } = await supabaseAuth.auth.getClaims(
+      authHeader.replace('Bearer ', ''),
+    );
+    if (claimsErr || !claimsData?.claims?.sub) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+    }
+
     const { symbol } = await req.json().catch(() => ({ symbol: 'BTC' }));
     const sym = (symbol || 'BTC').toUpperCase().replace('USDT', '');
 
