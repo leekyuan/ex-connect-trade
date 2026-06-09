@@ -101,7 +101,7 @@ export function MasterTradePlanCard({ plan, symbol, currentPrice }: Props) {
           {/* 실전 매매 CTA */}
           <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-border/50">
             <Link
-              to={`/position-calculator?symbol=${symbol}&entry=${plan.entry1}&sl=${plan.sl2}&tp1=${plan.tp1}&tp2=${plan.tp2}&side=${plan.side}`}
+              to={`/calculator?symbol=${symbol}&entry=${plan.entry1}&sl=${plan.sl2}&tp1=${plan.tp1}&tp2=${plan.tp2}&side=${plan.side}`}
               className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 font-bold"
               title="진입/손절/TP가 자동 입력된 포지션 계산기를 엽니다"
             >
