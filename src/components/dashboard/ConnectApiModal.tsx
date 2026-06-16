@@ -46,12 +46,16 @@ export function ConnectApiModal({ open, onOpenChange }: ConnectApiModalProps) {
 
     setSaving(true);
     try {
-      const { error } = await supabase.from("trading_settings").upsert(
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) throw new Error("로그인이 필요합니다.");
+
+      const { error } = await supabase.from("exchange_api_keys").upsert(
         {
+          user_id: userData.user.id,
           exchange,
-          api_key_encrypted: apiKey,
-          api_secret_encrypted: apiSecret,
-          passphrase_encrypted: exchange === "okx" ? passphrase : null,
+          api_key: apiKey,
+          api_secret: apiSecret,
+          passphrase: exchange === "okx" ? passphrase : null,
         },
         { onConflict: "user_id,exchange" }
       );
