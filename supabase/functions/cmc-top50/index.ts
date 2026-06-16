@@ -1,13 +1,7 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
 const CMC_API_KEY = Deno.env.get('CMC_API_KEY') ?? '';
 const CMC_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-};
 
 const STABLECOINS = new Set([
   // USD pegged
@@ -48,7 +42,7 @@ async function fetchCMC(sort: 'market_cap' | 'volume_24h', limit = 80) {
   return (json.data ?? []) as any[];
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
