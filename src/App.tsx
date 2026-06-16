@@ -8,6 +8,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { useTheme } from "@/hooks/useTheme";
 import { DemoModeProvider } from "@/contexts/DemoModeContext";
+import TodaySignalPage from "./pages/TodaySignalPage.tsx";
+import VerificationPage from "./pages/VerificationPage.tsx";
+import SecurityPage from "./pages/SecurityPage.tsx";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import MarketAnalysisPage from "./pages/MarketAnalysisPage.tsx";
@@ -28,6 +31,11 @@ import AdminDashboardPage from "./pages/AdminDashboardPage.tsx";
 import DisclaimerPage from "./pages/DisclaimerPage.tsx";
 import ApiPermissionsPage from "./pages/ApiPermissionsPage.tsx";
 import RiskLimitsPage from "./pages/RiskLimitsPage.tsx";
+import TermsPage from "./pages/legal/TermsPage.tsx";
+import PrivacyPage from "./pages/legal/PrivacyPage.tsx";
+import RiskDisclosurePage from "./pages/legal/RiskDisclosurePage.tsx";
+import ApiPolicyPage from "./pages/legal/ApiPolicyPage.tsx";
+import RefundPage from "./pages/legal/RefundPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -48,7 +56,13 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <Routes>
-                <Route path="/" element={<LandingPage />} />
+                {/* New core IA */}
+                <Route path="/" element={<TodaySignalPage />} />
+                <Route path="/verification" element={<VerificationPage />} />
+                <Route path="/security" element={<SecurityPage />} />
+
+                {/* Legacy / advanced */}
+                <Route path="/landing" element={<LandingPage />} />
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/reviewer" element={<ReviewerHubPage />} />
                 <Route path="/dashboard" element={<Index />} />
@@ -67,15 +81,23 @@ const App = () => (
                 <Route path="/disclaimer" element={<DisclaimerPage />} />
                 <Route path="/api-permissions" element={<ApiPermissionsPage />} />
                 <Route path="/risk-limits" element={<RiskLimitsPage />} />
+
+                {/* Legal */}
+                <Route path="/legal/terms" element={<TermsPage />} />
+                <Route path="/legal/privacy" element={<PrivacyPage />} />
+                <Route path="/legal/risk" element={<RiskDisclosurePage />} />
+                <Route path="/legal/api-policy" element={<ApiPolicyPage />} />
+                <Route path="/legal/refund" element={<RefundPage />} />
+
                 {/* Legacy redirects */}
-                <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/signup" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/trade" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/auto-trade" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/auth" element={<Navigate to="/" replace />} />
+                <Route path="/onboarding" element={<Navigate to="/" replace />} />
+                <Route path="/login" element={<Navigate to="/" replace />} />
+                <Route path="/signup" element={<Navigate to="/" replace />} />
+                <Route path="/trade" element={<Navigate to="/" replace />} />
+                <Route path="/auto-trade" element={<Navigate to="/" replace />} />
                 <Route path="/history" element={<Navigate to="/portfolio" replace />} />
-                <Route path="/api-keys" element={<Navigate to="/settings" replace />} />
+                <Route path="/api-keys" element={<Navigate to="/security" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>

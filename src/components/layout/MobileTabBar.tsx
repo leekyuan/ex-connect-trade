@@ -1,10 +1,10 @@
-import { Home, LineChart, FlaskConical, PieChart, TrendingUp, Bell } from "lucide-react";
+import { Target, CheckCircle2, ShieldCheck, PieChart, Bell } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const items = [
-  { to: "/dashboard", icon: Home, label: "홈", end: true },
-  { to: "/market-screener", icon: TrendingUp, label: "스크리너" },
-  { to: "/market-analysis", icon: LineChart, label: "분석" },
+  { to: "/", icon: Target, label: "신호", end: true },
+  { to: "/verification", icon: CheckCircle2, label: "검증" },
+  { to: "/security", icon: ShieldCheck, label: "보안" },
   { to: "/portfolio", icon: PieChart, label: "포트폴리오" },
   { to: "/alerts", icon: Bell, label: "알림" },
 ];

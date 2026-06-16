@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  LayoutDashboard,
   Settings,
   LineChart,
   FlaskConical,
@@ -12,8 +11,10 @@ import {
   Eye,
   Shield,
   ShieldAlert,
-  KeyRound,
-  Gauge,
+  ShieldCheck,
+  Target,
+  CheckCircle2,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -37,21 +38,28 @@ const reviewerItems = [
   { title: "검토자 허브", url: "/reviewer", icon: Eye },
 ];
 
-const mainItems = [
-  { title: "대시보드", url: "/dashboard", icon: LayoutDashboard },
-  { title: "마켓 스크리너", url: "/market-screener", icon: TrendingUp },
-  { title: "시장 분석", url: "/market-analysis", icon: LineChart },
-  { title: "백테스트", url: "/backtest", icon: FlaskConical },
-  { title: "포지션 계산기", url: "/calculator", icon: Calculator },
-  { title: "상관관계", url: "/correlation", icon: Network },
+const coreItems = [
+  { title: "오늘의 신호", url: "/", icon: Target, exact: true },
+  { title: "전략 검증", url: "/verification", icon: CheckCircle2 },
+  { title: "Risk & API", url: "/security", icon: ShieldCheck },
   { title: "포트폴리오", url: "/portfolio", icon: PieChart },
   { title: "알림 센터", url: "/alerts", icon: Bell, badgeKey: "alerts" as const },
 ];
 
-const helpItems = [
-  { title: "위험 고지", url: "/disclaimer", icon: ShieldAlert },
-  { title: "API 권한 안내", url: "/api-permissions", icon: KeyRound },
-  { title: "리스크 제한", url: "/risk-limits", icon: Gauge },
+const advancedItems = [
+  { title: "마켓 스크리너", url: "/market-screener", icon: TrendingUp },
+  { title: "시장 분석", url: "/market-analysis", icon: LineChart },
+  { title: "백테스트 (상세)", url: "/backtest", icon: FlaskConical },
+  { title: "포지션 계산기", url: "/calculator", icon: Calculator },
+  { title: "상관관계", url: "/correlation", icon: Network },
+];
+
+const legalItems = [
+  { title: "이용약관", url: "/legal/terms", icon: BookOpen },
+  { title: "개인정보처리방침", url: "/legal/privacy", icon: BookOpen },
+  { title: "투자 유의사항", url: "/legal/risk", icon: ShieldAlert },
+  { title: "API 보안 정책", url: "/legal/api-policy", icon: ShieldCheck },
+  { title: "환불 정책", url: "/legal/refund", icon: BookOpen },
 ];
 
 const settingsItems = [
@@ -116,16 +124,18 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>메인</SidebarGroupLabel>
+          <SidebarGroupLabel>핵심</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainItems.map((item) => {
+              {coreItems.map((item) => {
                 const showBadge = (item as any).badgeKey === 'alerts' && unread > 0;
+                const active = (item as any).exact ? location.pathname === item.url : isActive(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <SidebarMenuButton asChild isActive={active}>
                       <NavLink
                         to={item.url}
+                        end={(item as any).exact}
                         className="hover:bg-sidebar-accent/50 relative"
                         activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                       >
@@ -146,10 +156,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>도움말</SidebarGroupLabel>
+          <SidebarGroupLabel>Advanced</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {helpItems.map((item) => (
+              {advancedItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
@@ -162,6 +172,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>약관·정책</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {legalItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink to={item.url} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
 
 
         <SidebarGroup>

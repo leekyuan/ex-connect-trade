@@ -1,84 +1,96 @@
-# 외부 검토자(Reviewer) 모드 구축 계획
+## 목표
+"첫 10초 안에 롱/숏/관망을 판단할 수 있는" 전문 트레이딩 터미널로 재편. 잡다한 기능은 하위로 숨기고, BTC/ETH 선물 신호 + 전략 검증 + API 보안 3축에 집중.
 
-전체 기능을 외부에서 빠르게 평가할 수 있도록 **데모/검토자 전용 레이어**를 새로 만듭니다. 기존 비즈니스 로직은 그대로 두고, 그 위에 "검토용 표면"을 덧씌우는 방식입니다.
+## 새 정보 구조 (IA)
 
----
+```
+/                    Today Signal Dashboard  (홈 = 신호 카드 중심)
+/verification        Strategy Verification Dashboard
+/security            Risk & API Safety
+/portfolio           (기존, 사이드바)
+/journal             (기존, 사이드바)
+/screener            (Advanced 하위로 이동)
+/analysis            (Advanced 하위)
+/backtest            (Advanced 하위, /verification 으로 진입 유도)
+/legal/terms         이용약관
+/legal/privacy       개인정보처리방침
+/legal/risk          투자 유의사항
+/legal/api-policy    API 보안 정책
+/legal/refund        환불 정책
+```
 
-## 1. Reviewer Hub (`/reviewer`) — 모든 페이지 진입 네비
+## 1. 홈 — Today Signal Dashboard (`src/pages/Index.tsx` 교체)
 
-- 새 페이지 `src/pages/ReviewerHubPage.tsx` 생성
-- 카드 그리드로 17개 라우트(대시보드, 시장분석, 스크리너, 백테스트, 포트폴리오, 알림, 저널, 룰, 계산기, 상관관계, 정확도, 설정, 관리자, 위험고지, API 안내, 데모 안내, 랜딩) 전부 노출
-- 각 카드에 **목적·기대 결과·테스트 시나리오** 한 줄 설명
-- 상단 헤더에 "🔍 Reviewer Mode" 배너 + 데모 토글
-- 랜딩(`/`)과 사이드바에서 항상 접근 가능
+상단 디스클레이머 바: "수익을 보장하지 않습니다 · 매매 의사결정 보조 도구"
 
-## 2. 일반/관리자 대시보드 분리
+핵심: `<TodaySignalCard symbol="BTCUSDT" />`, `<TodaySignalCard symbol="ETHUSDT" />` 2장이 첫 화면을 점유. 모바일에서는 세로 스택.
 
-- `useRole()` 훅 추가 — `user_roles` 테이블 기반 (이미 가이드에 있는 패턴)
-- DB: `app_role` enum (`admin`, `user`), `user_roles` 테이블, `has_role()` security-definer 함수 마이그레이션
-- 신규 페이지 `src/pages/AdminDashboardPage.tsx` (`/admin`)
-  - 가입자 수, 신호 수, 오류 로그, 시스템 상태, 사용자 목록(읽기 전용 데모)
-- `Dashboard.tsx`는 그대로 일반 사용자 뷰
-- 사이드바에 admin일 때만 "관리자" 메뉴 노출
+각 카드:
+- 상태 배지: `LONG READY` / `SHORT READY` / `WAIT` / `NO TRADE` (초록/빨강/노랑/회색)
+- EP1, EP2 / TP1, TP2, TP3 / SL 가격 표
+- R:R, TP1 확률, 최근 100회 PF, 최근 30회 PF
+- 진입 금지 사유 (있을 때): "Rolling30 PF 0.94 — 기준 미달"
+- CTA: "전략 검증 보기" → `/verification?symbol=BTCUSDT`
 
-## 3. 더미 데이터 시더
+데이터: 기존 `useMarketAnalysis` + `unifiedSignal` + `unifiedBacktest` 재사용. 기준 미달이면 자동 `WAIT/NO TRADE`.
 
-- `src/utils/demoSeed.ts` — 데모 모드 ON 시 localStorage에 가짜 거래/포지션/저널/알림/룰/포트폴리오 채움
-- "데모 데이터 채우기 / 초기화" 버튼 (Reviewer Hub & Settings)
-- 시드: 30일치 거래 50건, 미체결 알림 5건, 룰 8개, 저널 10건
+## 2. Strategy Verification Dashboard (`src/pages/VerificationPage.tsx` 신규)
 
-## 4. 데모 모드 / 테스트넷
+기존 `SignalBacktestCard` + `unifiedBacktest` 확장. 표시 지표:
+PF · Win Rate · Trades · MaxDD · Avg R · TP1 Hit · Long PF / Short PF · OOS PF · Rolling30 PF · 수수료/슬리피지 적용 여부 · Top1~3 winner 제거 후 PF.
 
-- 전역 `DemoModeContext` (`src/contexts/DemoModeContext.tsx`)
-  - `localStorage: cryptoedge-demo-mode = "1"` 기본 ON
-- 거래소 API 호출(`exchangeApi.ts`, `usePaperTrading`) — 데모 모드에서는 가짜 잔고($10,000) + 가짜 주문 반환
-- `PaperTradingPanel`의 "실거래" 탭은 데모 모드에서 잠금 + "DEMO" 워터마크
-- 자동매매 트리거는 데모에서 simulated 로그만 남김
+기준 통과 시 `검증 통과` 배지, 미달 시 `실거래 비추천 · 모의검증 필요` 배지. 기준은 사용자 문서 그대로 코드 상수화.
 
-## 5. 라벨/툴팁 강화
+## 3. Risk & API Safety (`src/pages/SecurityPage.tsx` 신규 + ConnectApiModal 강화)
 
-- 새 컴포넌트 `<FeatureLabel title desc />` — 헤더 카드 상단에 "이 기능은 무엇을 하나요?" 한 줄
-- 8개 핵심 페이지(대시보드, 시장분석, 스크리너, 백테스트, 포트폴리오, 알림, 저널, 계산기) 상단에 삽입
-- 주요 버튼(매수/매도/자동매매 시작/백테스트 실행)에 `<InfoTip>` 추가
+- API Key 입력 모달 진입 시 보안 안내 단계(체크박스 3개 필수):
+  - "출금 권한 비활성화 확인"
+  - "거래 권한만 허용"
+  - "IP Whitelist 설정 권장"
+- Secret 저장 후 마스킹, 재표시 불가
+- Paper Mode 기본 ON 토글, 실거래 전환 시 2단계 확인
+- 리스크 한도 UI: 1회 손실 한도, 일일 손실 한도, 연속 손실 정지 N회, 최대 레버리지 슬라이더 (기존 `trading_rules` 테이블 사용)
 
-## 6. 자동매매 = 데모 전용 표시
+## 4. 컴포넌트 신규/수정
 
-- `AITradingAssistant.tsx` 등 자동매매 UI에 큰 "DEMO ONLY — 실주문 발생 안 함" 뱃지
-- 실제 `execute-trade` / `auto-trade` 엣지 함수 호출 전, 데모 모드면 클라이언트에서 차단하고 토스트로 "시뮬레이션 결과만 기록됨"
+신규:
+- `src/components/today/TodaySignalCard.tsx`
+- `src/components/today/DisclaimerBar.tsx`
+- `src/components/verification/VerificationCard.tsx` (기준 통과/미달 배지 포함)
+- `src/components/security/ApiSafetyModal.tsx` (3단계 체크 + 키 입력)
+- `src/components/security/RiskLimitsForm.tsx`
+- `src/pages/VerificationPage.tsx`, `src/pages/SecurityPage.tsx`
+- `src/pages/legal/{Terms,Privacy,RiskDisclosure,ApiPolicy,Refund}.tsx`
 
-## 7. 법적 안내 페이지 3종
+수정:
+- `src/pages/Index.tsx` → Today Signal Dashboard
+- `src/components/layout/AppSidebar.tsx` → 신규 IA, Advanced 그룹으로 screener/analysis/backtest 이동
+- `src/components/layout/MobileTabBar.tsx` → Today / Verify / Security / More
+- `src/App.tsx` → 신규 라우트
+- `src/components/dashboard/ConnectApiModal.tsx` → `ApiSafetyModal` 사용
 
-- `/disclaimer` — 투자 위험 고지 (원금 손실, 레버리지 위험, 미국·한국 규제)
-- `/api-permissions` — 거래소 API 키 권한 안내 (Read+Trade만, **Withdraw 절대 금지**, IP 화이트리스트)
-- `/risk-limits` — 일일 최대 손실, 포지션 한도, 레버리지 상한 기본값 설명
-- 모두 사이드바 "도움말" 그룹 + Reviewer Hub + 랜딩 푸터에 링크
+## 5. 카피 정비
+전 코드베이스에서 다음 표현 검색 후 치환:
+- "자동 수익", "고승률 보장", "돈 버는 AI" → 제거
+- 표준 문구: "AI 기반 매매 의사결정 보조", "백테스트 기반 신호 검증", "실거래 전 모의검증 필수", "수익을 보장하지 않습니다"
+- 메인 CTA: "전략 검증 보기" 우선, 보조 CTA "오늘 신호 보기"
 
-## 8. Publish 후 외부 접근
+## 6. 디자인 토큰
+- 다크 배경 유지, 신호색은 `--signal-long`(green) / `--signal-short`(red) / `--signal-wait`(amber) / `--signal-none`(muted) 4종만 사용
+- 큰 마케팅 문구 제거, 숫자 우선 (tabular-nums)
 
-- `/` (LandingPage)에 "🔍 검토자용 데모 보기" CTA 추가 → `/reviewer`로 이동
-- `/reviewer`는 비로그인도 접근 가능, 데모 모드 자동 ON
-- 로그인 필요 라우트는 데모 모드일 때 게스트 세션으로 우회 (이미 `AuthContext`가 guest 허용)
-- README에 검토자 체크리스트 추가
+## 작업 순서
+1. 디자인 토큰(신호색) 추가 → `index.css`, `tailwind.config.ts`
+2. `TodaySignalCard` + `DisclaimerBar` + 새 `Index.tsx`
+3. `VerificationPage` + `VerificationCard` + 기준 상수
+4. `ApiSafetyModal` + `RiskLimitsForm` + `SecurityPage`
+5. Legal 5개 페이지 (정적)
+6. 사이드바/모바일탭/라우트 정비
+7. 카피 sweep
 
----
+## 범위 밖 (이번 작업 안 함)
+- 신규 백테스트 엔진 (기존 `unifiedBacktest` 재사용, 지표만 노출)
+- 결제 연동
+- 알림/텔레그램 변경
 
-## 기술 변경 요약 (외부 검토자가 아닌 개발자용)
-
-**신규 파일**
-- `src/pages/ReviewerHubPage.tsx`, `AdminDashboardPage.tsx`, `DisclaimerPage.tsx`, `ApiPermissionsPage.tsx`, `RiskLimitsPage.tsx`
-- `src/contexts/DemoModeContext.tsx`
-- `src/hooks/useRole.ts`
-- `src/utils/demoSeed.ts`
-- `src/components/common/FeatureLabel.tsx`, `DemoBadge.tsx`, `ReviewerBanner.tsx`
-
-**수정**
-- `src/App.tsx` — 새 라우트 7개 등록, `DemoModeProvider` 래핑
-- `src/components/layout/AppSidebar.tsx` — Reviewer/Admin/Help 그룹 추가
-- `src/pages/LandingPage.tsx` — Reviewer CTA
-- `src/components/dashboard/PaperTradingPanel.tsx`, `AITradingAssistant.tsx` — 데모 가드
-- `src/utils/exchangeApi.ts` — 데모 모드 분기
-
-**DB 마이그레이션**
-- `app_role` enum + `user_roles` 테이블 + `has_role()` 함수 + RLS + GRANT
-
-분량이 큰 작업이라 한 턴에 모두 처리합니다. 승인하시면 바로 구현 시작하겠습니다.
+작업 후 변경 파일 목록과 핵심 변경점을 요약합니다.
