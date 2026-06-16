@@ -53,9 +53,26 @@ Deno.serve(async (req) => {
 
     // CryptoCompare free news endpoint (no key required for basic use)
     const newsUrl = `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=${encodeURIComponent(sym)}`;
-    const newsRes = await fetch(newsUrl);
-    if (!newsRes.ok) throw new Error(`news upstream ${newsRes.status}`);
-    const newsJson = await newsRes.json();
+    let newsJson: any = {};
+    try {
+      const newsRes = await fetch(newsUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LovableNewsBot/1.0)' },
+      });
+      if (!newsRes.ok) {
+        console.error(`news upstream ${newsRes.status}`);
+        return Response.json(
+          emptyResult(sym, `${sym} 관련 뉴스 피드를 일시적으로 불러올 수 없습니다. 잠시 후 다시 시도하세요.`),
+          { headers: corsHeaders },
+        );
+      }
+      newsJson = await newsRes.json();
+    } catch (fetchErr) {
+      console.error('news fetch failed', fetchErr);
+      return Response.json(
+        emptyResult(sym, `${sym} 관련 뉴스 피드에 접근할 수 없습니다.`),
+        { headers: corsHeaders },
+      );
+    }
     const raw: NewsItem[] = Array.isArray(newsJson?.Data) ? newsJson.Data : [];
 
     if (!raw.length) {
