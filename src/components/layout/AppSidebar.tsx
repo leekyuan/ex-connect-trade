@@ -15,7 +15,6 @@ import {
   Target,
   CheckCircle2,
   BookOpen,
-  ChevronDown,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
