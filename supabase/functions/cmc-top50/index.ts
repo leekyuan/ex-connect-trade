@@ -42,7 +42,7 @@ async function fetchCMC(sort: 'market_cap' | 'volume_24h', limit = 80) {
   return (json.data ?? []) as any[];
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
