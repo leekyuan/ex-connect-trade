@@ -544,40 +544,31 @@ export type Database = {
       }
       trading_settings: {
         Row: {
-          api_key_encrypted: string | null
-          api_secret_encrypted: string | null
           auto_trade_enabled: boolean
           created_at: string
           default_leverage: number
           exchange: string
           id: string
-          passphrase_encrypted: string | null
           strategy_params: Json | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          api_key_encrypted?: string | null
-          api_secret_encrypted?: string | null
           auto_trade_enabled?: boolean
           created_at?: string
           default_leverage?: number
           exchange?: string
           id?: string
-          passphrase_encrypted?: string | null
           strategy_params?: Json | null
           updated_at?: string
           user_id?: string
         }
         Update: {
-          api_key_encrypted?: string | null
-          api_secret_encrypted?: string | null
           auto_trade_enabled?: boolean
           created_at?: string
           default_leverage?: number
           exchange?: string
           id?: string
-          passphrase_encrypted?: string | null
           strategy_params?: Json | null
           updated_at?: string
           user_id?: string
