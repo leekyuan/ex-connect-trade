@@ -82,8 +82,8 @@ export function buildVerdict(r: PFBacktestResult, feesIncluded = true, slipInclu
     state = 'NEEDS_MORE_DATA';
   } else if (reasons.length === 0) {
     state = 'PASS';
-  } else if (metrics.trades < GATES.minTrades) {
-    state = 'FAIL';
+  } else if (!feesIncluded || !slipIncluded) {
+    state = 'PAPER_REQUIRED';
   } else {
     state = 'FAIL';
   }
