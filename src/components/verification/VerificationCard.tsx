@@ -50,10 +50,12 @@ export function VerificationCard({ symbol }: Props) {
           <p className="text-[11px] text-muted-foreground">1년 H1 · 수수료 0.04% · 슬리피지 0.05% 반영</p>
         </div>
         <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {eligibility && <EligibilityBadge state={eligibility.state} />}
           {!loading && metrics && (
             allPass
-              ? <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">검증 통과 · 실거래 가능</Badge>
-              : <Badge className="bg-amber-500/15 text-amber-200 border border-amber-500/40">실거래 비추천 · 모의검증 필요</Badge>
+              ? <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">7대 게이트 통과</Badge>
+              : <Badge className="bg-amber-500/15 text-amber-200 border border-amber-500/40">게이트 미달</Badge>
           )}
           <Button size="sm" variant="outline" onClick={run} disabled={loading}>
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
