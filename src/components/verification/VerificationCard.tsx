@@ -49,7 +49,6 @@ export function VerificationCard({ symbol }: Props) {
           <h2 className="text-lg font-bold tracking-tight">{symbol} · 전략 검증</h2>
           <p className="text-[11px] text-muted-foreground">1년 H1 · 수수료 0.04% · 슬리피지 0.05% 반영</p>
         </div>
-        <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           {eligibility && <EligibilityBadge state={eligibility.state} />}
           {!loading && metrics && (
