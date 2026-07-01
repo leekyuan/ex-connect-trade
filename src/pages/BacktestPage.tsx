@@ -24,6 +24,8 @@ import {
 } from '@/utils/profitFirstBacktest';
 import { toast } from 'sonner';
 import { BacktestWarnings } from '@/components/Backtest/BacktestWarnings';
+import { StrategyVerdictCard } from '@/components/Backtest/StrategyVerdictCard';
+import { buildVerdict } from '@/utils/strategyVerdict';
 
 const FALLBACK_COIN_LIST = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'DOT', 'TRX', 'TON'];
 const PERIODS: { label: string; value: Period }[] = [
