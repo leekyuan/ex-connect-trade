@@ -264,6 +264,12 @@ export default function BacktestPage() {
 
           {result && (
             <div className="space-y-5">
+              <StrategyVerdictCard verdict={buildVerdict(result)} symbol={config.symbol} />
+              {result.metrics.totalTrades < 30 && (
+                <div className="rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-200/90">
+                  ⚠ 거래 수 {result.metrics.totalTrades}건 — Sharpe/Sortino 값의 통계적 신뢰도가 낮습니다. 최소 100건 이상 검증 필요.
+                </div>
+              )}
               <BacktestWarnings result={{
                 totalTrades: result.metrics.totalTrades,
                 winRate: result.metrics.winRatePct / 100,
