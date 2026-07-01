@@ -74,6 +74,7 @@ export function VerificationCard({ symbol }: Props) {
 
       {metrics && !loading && (
         <>
+          {eligibility && <BlockedReasonPanel result={eligibility} />}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-mono">
             <Stat label="Trades" value={metrics.trades.toString()} />
             <Stat label="Profit Factor" value={metrics.pf.toFixed(2)} />
