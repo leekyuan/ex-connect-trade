@@ -32,6 +32,7 @@ export function VerificationCard({ symbol }: Props) {
       const m = computeGateMetrics(r);
       const ev = evaluateGates(m);
       setResult(r); setMetrics(m); setChecks(ev.checks); setAllPass(ev.allPass);
+      setEligibility(computeEligibility(m, true));
     } catch (e: any) {
       setErr(e?.message ?? "검증 실패");
     } finally {
