@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { runUnifiedBacktest, type UnifiedBacktestResult } from "@/utils/unifiedBacktest";
 import { computeGateMetrics, evaluateGates, type GateMetrics, type GateCheck } from "@/utils/verificationGates";
+import { computeEligibility, type EligibilityResult } from "@/utils/tradeEligibility";
+import { EligibilityBadge } from "@/components/common/EligibilityBadge";
+import { BlockedReasonPanel } from "@/components/common/BlockedReasonPanel";
 
 interface Props {
   symbol: string; // e.g. BTCUSDT
