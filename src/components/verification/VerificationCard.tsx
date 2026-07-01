@@ -20,6 +20,7 @@ export function VerificationCard({ symbol }: Props) {
   const [metrics, setMetrics] = useState<GateMetrics | null>(null);
   const [checks, setChecks] = useState<GateCheck[]>([]);
   const [allPass, setAllPass] = useState(false);
+  const [eligibility, setEligibility] = useState<EligibilityResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const run = async () => {
