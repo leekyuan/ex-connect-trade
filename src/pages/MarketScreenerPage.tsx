@@ -31,6 +31,7 @@ export default function MarketScreenerPage() {
   const { matrix, progress: mtfProgress, total: mtfTotal } = useScreenerMtf(view === 'mtf' ? symbols : [], 30_000);
 
   const [filter, setFilter] = useState<ConsensusFilter>('ALL');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [query, setQuery] = useState('');
 
   const [countdown, setCountdown] = useState(REFRESH_MS / 1000);
