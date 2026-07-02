@@ -1,73 +1,41 @@
-# Welcome to your Lovable project
+# CryptoEdgeAI - Main Dashboard
 
-## Project info
+This repository is the main GitHub codebase connected to the Lovable project:
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+CryptoEdgeAI - Main Dashboard
 
-## How can I edit this code?
+## Purpose
 
-There are several ways of editing your application.
+CryptoEdgeAI is a crypto trading signal dashboard and trading assistant project.
 
-**Use Lovable**
+The project must prioritize safety, reviewability, and clear separation between UI, signal logic, risk controls, and any future trading automation.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Source of Truth
 
-Changes made via Lovable will be committed automatically to this repo.
+This repository is the main project source.
 
-**Use your preferred IDE**
+Do not use old Remix projects as the main version unless explicitly requested.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Required Reading for AI Agents
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Before Codex, Claude, Lovable, or any AI tool modifies this project, read:
 
-Follow these steps:
+- `PROJECT_STATUS.md`
+- `SAFETY_RULES.md`
+- `CHANGELOG.md`
+- `PROMPT_HISTORY.md`
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Safety Principles
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- Live trading must be disabled by default.
+- Paper/test mode must be the default mode.
+- API keys and secrets must never be committed.
+- Risk controls must not be removed.
+- Backtest or signal results must not be described as guaranteed profit.
+- Any trading-related feature must include failure handling and manual stop logic.
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Development Notes
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+This project is synced from Lovable to GitHub.
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Avoid renaming, moving, or deleting this repository without checking Lovable sync first.
