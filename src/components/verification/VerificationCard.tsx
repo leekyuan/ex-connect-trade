@@ -166,11 +166,3 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded border border-border/50 bg-background/30 p-2">
-      <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</div>
-      <div className="tabular-nums font-semibold text-sm">{value}</div>
-    </div>
-  );
-}
