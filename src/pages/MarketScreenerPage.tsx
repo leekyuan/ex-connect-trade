@@ -11,8 +11,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { RefreshCw, Search, TrendingUp, Star } from 'lucide-react';
+import { RefreshCw, Search, TrendingUp, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { ScreenerCoinDrawer } from '@/components/MarketScreener/ScreenerCoinDrawer';
+import { TopCandidatesPanel } from '@/components/MarketScreener/TopCandidatesPanel';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 
