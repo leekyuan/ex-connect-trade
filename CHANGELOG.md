@@ -18,6 +18,8 @@ All important project changes should be recorded here.
 - Binance Futures endpoint allowlist
 - Trade execution idempotency-key migration
 - Frontend idempotency keys for `execute-trade` requests
+- Supabase project link to `hquupjdbfughvvffqctv`
+- Supabase Edge Function deployment notes for `execute-trade` and `binance-proxy`
 
 ### Changed
 
@@ -27,10 +29,12 @@ All important project changes should be recorded here.
 - `execute-trade` now fails closed when mandatory stop-loss placement fails
 - `binance-proxy` now blocks non-allowlisted and unprotected mutating requests
 - Binance close-position helper now sends `reduceOnly=true`
+- `.gitignore` now excludes Supabase CLI local temp files
 
 ### Fixed
 
 - Fixed `.env.example` mismatch from `VITE_SUPABASE_ANON_KEY` to `VITE_SUPABASE_PUBLISHABLE_KEY`
+- Applied the risk guard `trade_logs.idempotency_key` column and unique index directly to the linked Supabase DB because the remote legacy schema does not match the full local migration history
 
 ### Removed
 

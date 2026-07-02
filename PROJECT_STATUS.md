@@ -50,6 +50,26 @@ Default behavior:
 - `execute-trade` requires an idempotency key to reduce duplicate-order risk.
 - `binance-proxy` allows only specific Binance Futures endpoints and blocks unprotected market orders by default.
 
+## Supabase Deployment Status
+
+Active Supabase project ref: `hquupjdbfughvvffqctv`
+
+Deployment status on 2026-07-02:
+
+- Local project linked to `hquupjdbfughvvffqctv`.
+- `LIVE_TRADING_ENABLED=false` configured in Supabase Edge Function secrets.
+- Risk guard secrets configured for symbol allowlist, leverage cap, position cap, and loss caps.
+- `execute-trade` deployed and ACTIVE.
+- `binance-proxy` deployed and ACTIVE.
+- Unauthenticated HTTP checks return 401, as expected.
+
+Important schema note:
+
+- The remote Supabase DB currently has a different legacy schema than the local migration history.
+- Do not run full `supabase db push` until the remote schema is reconciled or baselined.
+- The risk guard DB change was applied directly: `trade_logs.idempotency_key` plus a unique `(user_id, idempotency_key)` index.
+- Live trading must remain disabled until the remote DB schema is reconciled with the app code, especially `exchange_api_keys`, `trade_history`, and `trade_logs`.
+
 ## Do Not Confuse With
 
 - Old Remix projects
@@ -60,8 +80,7 @@ Default behavior:
 ## Next Review Tasks
 
 - Review `REPO_AUDIT_REPORT.md`.
-- Add server-side risk checks before live execution.
-- Restrict Binance proxy endpoints.
-- Unify API key storage forms.
-- Add idempotency and duplicate-order protection.
+- Reconcile the remote Supabase schema with the app code before enabling live trading.
+- Unify API key storage forms and verify `exchange_api_keys` exists remotely.
+- Decide whether to baseline existing remote migrations or create a clean production Supabase project.
 - Add automated tests for live-trading safety gates.

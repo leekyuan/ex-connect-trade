@@ -19,6 +19,7 @@ Real funds can be lost. Safety rules must be preserved.
 - Server-side functions must enforce risk limits before any live order is sent.
 - Live order functions must fail closed when validation, API lookup, SL placement, or account-state checks fail.
 - `LIVE_TRADING_ENABLED` must stay `false` until explicit production approval.
+- `LIVE_TRADING_ENABLED` must stay `false` while the remote Supabase schema differs from the app code.
 - Binance proxy order endpoints must stay allowlisted.
 - Unprotected market orders must stay blocked unless there is a separately reviewed bracket-order flow.
 
@@ -41,6 +42,7 @@ Any live or paper trading system must include:
 - Server-side allowlist for exchange API endpoints
 - Idempotency key for every live order request
 - Default-off environment switch for mutating live trading functions
+- Verified remote DB tables for API keys, trade history, trade logs, and idempotency checks
 
 ## AI Agent Rules
 
