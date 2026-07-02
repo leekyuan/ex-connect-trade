@@ -234,6 +234,7 @@ export default function MarketScreenerPage() {
             />
           </TabsContent>
         </Tabs>
+        )}
 
         <ScreenerCoinDrawer
           open={!!openSym}
