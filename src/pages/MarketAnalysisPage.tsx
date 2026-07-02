@@ -343,18 +343,40 @@ export default function MarketAnalysisPage() {
           </div>
 
           <div className="space-y-4">
-            {/* 최종 매매 플랜 — 모든 뷰 공통 */}
-            <MasterTradePlanCard plan={masterPlan} symbol={symbol} currentPrice={currentPrice} />
+            {/* 1) Current Safety Status — 우측 패널 최상단 */}
+            <SafetyStatusCard
+              safety={safety}
+              extraReasons={eligibility?.reasons.slice(0, 4)}
+            />
 
-            {/* ICT/와이코프 실시간 모니터 */}
+            {/* 2) Current Setup — 통합 신호(방향/TF/트리거) */}
+            {multi && (
+              <UnifiedSignalPanel
+                symbol={`${symbol} · ${multi.primaryTf.label}`}
+                signal={multi.primarySignal}
+                loading={loading}
+              />
+            )}
+
+            {/* 3) Risk Plan — EP/SL/TP + 실행 CTA (BLOCKED 시 잠김) */}
+            <MasterTradePlanCard
+              plan={masterPlan}
+              symbol={symbol}
+              currentPrice={currentPrice}
+              safetyState={safety.state}
+            />
+
+            {/* 4) Evidence — 백테스트 지표 */}
+            <SignalBacktestCard symbol={symbol} groupLabel={STYLE_GROUPS[group].label} />
+
+            {/* 5) Advanced — ICT/와이코프, 시나리오, 하모닉 */}
             <IctWyckoffMonitor
               candles={neo.candles}
               currentPrice={currentPrice}
               live={neo.live}
               lastUpdate={neo.lastUpdate}
             />
-
-            {chartView === 'neowave' ? (
+            {chartView === 'neowave' && (
               <>
                 <NeoWaveScenarioPanel
                   result={neo.result}
@@ -368,25 +390,7 @@ export default function MarketAnalysisPage() {
                   candles={neo.candles}
                   currentPrice={currentPrice}
                 />
-                <SignalBacktestCard symbol={symbol} groupLabel={STYLE_GROUPS[group].label} />
               </>
-            ) : (
-              loading && !multi ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-32 w-full rounded-xl" />
-                  <Skeleton className="h-40 w-full rounded-xl" />
-                  <Skeleton className="h-24 w-full rounded-xl" />
-                </div>
-              ) : (
-                <>
-                  <UnifiedSignalPanel
-                    symbol={`${symbol} · ${multi?.primaryTf.label ?? ''}`}
-                    signal={multi?.primarySignal ?? null}
-                    loading={loading}
-                  />
-                  <SignalBacktestCard symbol={symbol} groupLabel={STYLE_GROUPS[group].label} />
-                </>
-              )
             )}
           </div>
         </div>
