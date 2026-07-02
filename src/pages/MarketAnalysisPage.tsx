@@ -16,6 +16,9 @@ import { IctWyckoffMonitor } from '@/components/MarketAnalysis/IctWyckoffMonitor
 import { ProMarketPanel } from '@/components/MarketAnalysis/ProMarketPanel';
 import { NewsCatalystCard } from '@/components/MarketAnalysis/NewsCatalystCard';
 import { AITradingAssistant } from '@/components/dashboard/AITradingAssistant';
+import { SafetyStatusCard } from '@/components/common/SafetyStatusCard';
+import { useGlobalSafety } from '@/hooks/useGlobalSafety';
+import type { EligibilityResult } from '@/utils/tradeEligibility';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LABEL_META } from '@/utils/unifiedSignal';
 import { buildMasterPlan } from '@/utils/masterPlan';
@@ -99,6 +102,20 @@ export default function MarketAnalysisPage() {
     () => buildMasterPlan(multi, neo.candles, currentPrice),
     [multi, neo.candles, currentPrice],
   );
+
+  // ── Global Safety — BTC/ETH 는 데모 기본값(BLOCKED), 그 외 미결 ──
+  const eligibility: EligibilityResult | null = useMemo(() => {
+    if (symbol === 'BTC' || symbol === 'ETH') {
+      return {
+        state: 'BLOCKED', hardBlock: true, passCount: 0, totalGates: 7,
+        reasons: symbol === 'BTC'
+          ? ['Profit Factor 0.56 < 1.30', 'Avg R -0.19 < +0.07', 'OOS PF 0.64 < 1.20', 'Rolling30 PF 0.38 < 1.10']
+          : ['Profit Factor 0.82 < 1.30', 'Avg R -0.06 < +0.07', 'OOS PF 0.76 < 1.20', 'Rolling30 PF 0.26 < 1.10'],
+      };
+    }
+    return null;
+  }, [symbol]);
+  const safety = useGlobalSafety(eligibility);
 
   // ── AI 코치 컨텍스트 ──
   const aiContext = useMemo(() => {
