@@ -1,11 +1,13 @@
-import { Target, TrendingUp, TrendingDown, Minus, Shield, AlertTriangle, Calculator, Bell, Star } from 'lucide-react';
+import { Target, TrendingUp, TrendingDown, Minus, Shield, AlertTriangle, Calculator, Bell, Star, Ban } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { MasterPlan } from '@/utils/masterPlan';
+import type { SafetyState } from '@/hooks/useGlobalSafety';
 
 interface Props {
   plan: MasterPlan | null;
   symbol: string;
   currentPrice: number;
+  safetyState?: SafetyState;
 }
 
 const SIDE_META = {
@@ -25,7 +27,9 @@ function pctFromPrice(target: number, current: number): string {
   return `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
 }
 
-export function MasterTradePlanCard({ plan, symbol, currentPrice }: Props) {
+export function MasterTradePlanCard({ plan, symbol, currentPrice, safetyState }: Props) {
+  const isBlocked = safetyState === 'BLOCKED';
+  const isPaper = safetyState === 'PAPER_READY';
   if (!plan) {
     return (
       <div className="rounded-xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
@@ -98,30 +102,39 @@ export function MasterTradePlanCard({ plan, symbol, currentPrice }: Props) {
             ))}
           </ul>
 
-          {/* 실전 매매 CTA */}
-          <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-border/50">
-            <Link
-              to={`/calculator?symbol=${symbol}&entry=${plan.entry1}&sl=${plan.sl2}&tp1=${plan.tp1}&tp2=${plan.tp2}&side=${plan.side}`}
-              className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 font-bold"
-              title="진입/손절/TP가 자동 입력된 포지션 계산기를 엽니다"
-            >
-              <Calculator className="h-3 w-3" /> 포지션 계산
-            </Link>
-            <Link
-              to={`/alerts?symbol=${symbol}&price=${plan.entry1}`}
-              className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-muted text-foreground border border-border hover:bg-muted/70 font-bold"
-              title="진입가 도달 시 알림을 받습니다"
-            >
-              <Bell className="h-3 w-3" /> 알림 받기
-            </Link>
-            <Link
-              to={`/portfolio?watch=${symbol}`}
-              className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-muted text-foreground border border-border hover:bg-muted/70 font-bold"
-              title="관심종목에 추가"
-            >
-              <Star className="h-3 w-3" /> 관심종목
-            </Link>
-          </div>
+          {/* 실전 매매 CTA — BLOCKED 시 비활성화 */}
+          {isBlocked ? (
+            <div className="pt-2 border-t border-border/50">
+              <div className="flex items-center justify-center gap-1.5 text-[11px] px-2 py-2 rounded-md bg-red-500/10 text-red-300 border border-red-500/40 font-bold">
+                <Ban className="h-3.5 w-3.5" />
+                전략 검증 실패로 진입 차단됨 — 실행 버튼 비활성
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-border/50">
+              <Link
+                to={`/calculator?symbol=${symbol}&entry=${plan.entry1}&sl=${plan.sl2}&tp1=${plan.tp1}&tp2=${plan.tp2}&side=${plan.side}`}
+                className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 font-bold"
+              >
+                <Calculator className="h-3 w-3" /> 포지션 계산
+              </Link>
+              <Link
+                to={`/alerts?symbol=${symbol}&price=${plan.entry1}`}
+                className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-muted text-foreground border border-border hover:bg-muted/70 font-bold"
+              >
+                <Bell className="h-3 w-3" /> 알림 받기
+              </Link>
+              <Link
+                to={`/portfolio?watch=${symbol}`}
+                className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-muted text-foreground border border-border hover:bg-muted/70 font-bold"
+              >
+                <Star className="h-3 w-3" /> 관심종목
+              </Link>
+            </div>
+          )}
+          {isPaper && (
+            <div className="text-[10px] text-sky-300/90 text-center pt-1">Paper Mode에서 추가 검증 필요 — 실거래 실행 잠금</div>
+          )}
         </>
       )}
     </div>
