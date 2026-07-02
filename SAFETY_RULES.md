@@ -19,7 +19,8 @@ Real funds can be lost. Safety rules must be preserved.
 - Server-side functions must enforce risk limits before any live order is sent.
 - Live order functions must fail closed when validation, API lookup, SL placement, or account-state checks fail.
 - `LIVE_TRADING_ENABLED` must stay `false` until explicit production approval.
-- `LIVE_TRADING_ENABLED` must stay `false` while the remote Supabase schema differs from the app code.
+- `LIVE_TRADING_ENABLED` must stay `false` until the clean production Supabase project has passed authenticated end-to-end tests.
+- Do not use the legacy Supabase project `hquupjdbfughvvffqctv` as the main production DB.
 - Binance proxy order endpoints must stay allowlisted.
 - Unprotected market orders must stay blocked unless there is a separately reviewed bracket-order flow.
 

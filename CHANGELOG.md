@@ -20,6 +20,8 @@ All important project changes should be recorded here.
 - Frontend idempotency keys for `execute-trade` requests
 - Supabase project link to `hquupjdbfughvvffqctv`
 - Supabase Edge Function deployment notes for `execute-trade` and `binance-proxy`
+- Clean Supabase production project `cryptoedgeai-production` using ref `hoylvkjlkkvwiqvxuajx`
+- Full migration baseline applied to the clean production Supabase DB
 
 ### Changed
 
@@ -30,11 +32,16 @@ All important project changes should be recorded here.
 - `binance-proxy` now blocks non-allowlisted and unprotected mutating requests
 - Binance close-position helper now sends `reduceOnly=true`
 - `.gitignore` now excludes Supabase CLI local temp files
+- Supabase config now targets the clean production project `hoylvkjlkkvwiqvxuajx`
 
 ### Fixed
 
 - Fixed `.env.example` mismatch from `VITE_SUPABASE_ANON_KEY` to `VITE_SUPABASE_PUBLISHABLE_KEY`
 - Applied the risk guard `trade_logs.idempotency_key` column and unique index directly to the linked Supabase DB because the remote legacy schema does not match the full local migration history
+
+### Deprecated
+
+- Legacy Supabase project `hquupjdbfughvvffqctv` is no longer the main production target for this repository
 
 ### Removed
 

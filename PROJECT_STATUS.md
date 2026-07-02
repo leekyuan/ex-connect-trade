@@ -52,23 +52,26 @@ Default behavior:
 
 ## Supabase Deployment Status
 
-Active Supabase project ref: `hquupjdbfughvvffqctv`
+Active Supabase production project ref: `hoylvkjlkkvwiqvxuajx`
 
 Deployment status on 2026-07-02:
 
-- Local project linked to `hquupjdbfughvvffqctv`.
+- New clean Supabase production project created: `cryptoedgeai-production`.
+- Local project linked to `hoylvkjlkkvwiqvxuajx`.
+- Full local migration history applied successfully from scratch.
+- Migration history is aligned between local files and the production DB.
 - `LIVE_TRADING_ENABLED=false` configured in Supabase Edge Function secrets.
 - Risk guard secrets configured for symbol allowlist, leverage cap, position cap, and loss caps.
 - `execute-trade` deployed and ACTIVE.
 - `binance-proxy` deployed and ACTIVE.
 - Unauthenticated HTTP checks return 401, as expected.
 
-Important schema note:
+Legacy schema note:
 
-- The remote Supabase DB currently has a different legacy schema than the local migration history.
-- Do not run full `supabase db push` until the remote schema is reconciled or baselined.
-- The risk guard DB change was applied directly: `trade_logs.idempotency_key` plus a unique `(user_id, idempotency_key)` index.
-- Live trading must remain disabled until the remote DB schema is reconciled with the app code, especially `exchange_api_keys`, `trade_history`, and `trade_logs`.
+- Previous project `hquupjdbfughvvffqctv` had a different legacy schema than the local migration history.
+- Do not use `hquupjdbfughvvffqctv` as the main production DB for this repo.
+- Continue development against `hoylvkjlkkvwiqvxuajx` unless explicitly migrating again.
+- Live trading must remain disabled until authenticated app flows, API-key storage, exchange behavior, and emergency procedures are tested end-to-end.
 
 ## Do Not Confuse With
 
@@ -80,7 +83,8 @@ Important schema note:
 ## Next Review Tasks
 
 - Review `REPO_AUDIT_REPORT.md`.
-- Reconcile the remote Supabase schema with the app code before enabling live trading.
-- Unify API key storage forms and verify `exchange_api_keys` exists remotely.
-- Decide whether to baseline existing remote migrations or create a clean production Supabase project.
+- Update Lovable/frontend environment variables to point to `hoylvkjlkkvwiqvxuajx`.
+- Test signup/login and RLS flows on the clean production DB.
+- Test paper-mode UI flows before any live exchange keys are added.
+- Unify API key storage forms and verify `exchange_api_keys` writes work through RLS.
 - Add automated tests for live-trading safety gates.
