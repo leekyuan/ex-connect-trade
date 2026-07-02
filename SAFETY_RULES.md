@@ -15,6 +15,12 @@ Real funds can be lost. Safety rules must be preserved.
 - Do not claim guaranteed profit.
 - Do not use future data in backtests.
 - Do not remove error handling around orders, API calls, or account state checks.
+- UI-only or localStorage-only safety checks are not enough for live trading.
+- Server-side functions must enforce risk limits before any live order is sent.
+- Live order functions must fail closed when validation, API lookup, SL placement, or account-state checks fail.
+- `LIVE_TRADING_ENABLED` must stay `false` until explicit production approval.
+- Binance proxy order endpoints must stay allowlisted.
+- Unprotected market orders must stay blocked unless there is a separately reviewed bracket-order flow.
 
 ## Required Trading Safety Controls
 
@@ -28,6 +34,13 @@ Any live or paper trading system must include:
 - Position state verification
 - Manual emergency stop
 - Clear paper/live mode separation
+- Server-side leverage cap
+- Server-side max position size check
+- Server-side daily loss check
+- Server-side duplicate-order/idempotency check
+- Server-side allowlist for exchange API endpoints
+- Idempotency key for every live order request
+- Default-off environment switch for mutating live trading functions
 
 ## AI Agent Rules
 
@@ -38,3 +51,4 @@ Codex, Claude, Lovable, or any AI assistant must not:
 - Add real API keys to code
 - Hide risk warnings from the UI
 - Present simulations as guaranteed results
+- Bypass `REPO_AUDIT_REPORT.md` findings without explicit approval

@@ -1,5 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as ccxt from "npm:ccxt@4";
+import {
+  guardErrorResponse,
+  guardTradeRequest,
+  isGuardError,
+  type GuardedTrade,
+} from "../_shared/riskGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +23,7 @@ interface TradeRequest {
   tpSplitRatio: number;
   leverage: number;
   positionSize: number;
+  idempotencyKey?: string;
 }
 
 function createExchange(
@@ -48,6 +55,32 @@ function createExchange(
   }
 }
 
+function clientOrderId(idempotencyKey: string, suffix: string) {
+  const compact = idempotencyKey.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 22);
+  return `ce_${compact}_${suffix}`.slice(0, 36);
+}
+
+async function cancelOrderSafely(exchange: ccxt.Exchange, symbol: string, order: any) {
+  if (!order?.id) return;
+  try {
+    await exchange.cancelOrder(order.id, symbol);
+    console.warn("Cancelled order after protective-order failure:", order.id);
+  } catch (error) {
+    console.error("Failed to cancel order during rollback:", order.id, error);
+  }
+}
+
+function riskSummary(risk: GuardedTrade) {
+  return {
+    idempotency_key: risk.idempotencyKey,
+    max_leverage_checked: true,
+    max_position_checked: true,
+    max_loss_checked: true,
+    daily_loss_checked: true,
+    estimated_loss_usdt: Number(risk.estimatedLossUsdt.toFixed(4)),
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -68,7 +101,6 @@ Deno.serve(async (req: Request) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabase.auth.getUser();
     if (claimsError || !claimsData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -79,15 +111,8 @@ Deno.serve(async (req: Request) => {
 
     const userId = claimsData.user.id;
     const body: TradeRequest = await req.json();
-    const { exchange: exchangeName, symbol, entry, tp1, tp2, sl, tpSplitRatio, leverage, positionSize } = body;
-
-    // Validate
-    if (!exchangeName || !symbol || !entry || !tp1 || !tp2 || !sl) {
-      return new Response(JSON.stringify({ error: "Missing required trade parameters" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const risk = await guardTradeRequest({ supabase, userId, body });
+    const { exchange: exchangeName, symbol, entry, tp1, tp2, sl, tpSplitRatio, leverage, positionSize } = risk;
 
     // Get API keys
     const { data: apiKeyData, error: apiKeyError } = await supabase
@@ -107,11 +132,10 @@ Deno.serve(async (req: Request) => {
     // Create exchange instance
     const exchange = createExchange(exchangeName, apiKeyData.api_key, apiKeyData.api_secret, apiKeyData.passphrase);
 
-    // Set leverage
     try {
       await exchange.setLeverage(leverage, symbol);
-    } catch (e) {
-      console.warn("Failed to set leverage (may already be set):", e);
+    } catch (e: any) {
+      throw new Error(`Set leverage failed: ${e?.message ?? e}`);
     }
 
     const totalQuantity = positionSize / entry;
@@ -123,19 +147,37 @@ Deno.serve(async (req: Request) => {
 
     const orders = [];
 
-    // 1. Entry limit order
+    let entryOrder: any = null;
+    let slOrder: any = null;
+
     try {
-      const entryOrder = await exchange.createOrder(symbol, "limit", side, totalQuantity, entry);
+      entryOrder = await exchange.createOrder(symbol, "limit", side, totalQuantity, entry, {
+        clientOrderId: clientOrderId(risk.idempotencyKey, "entry"),
+      });
       orders.push({ type: "entry", ...entryOrder });
       console.log("Entry order placed:", entryOrder.id);
     } catch (e: any) {
       throw new Error(`Entry order failed: ${e.message}`);
     }
 
-    // 2. TP1 take-profit limit (reduce only)
+    // Stop-loss is mandatory. If it fails, cancel the entry order and fail closed.
+    try {
+      slOrder = await exchange.createOrder(symbol, "stop", closeSide, totalQuantity, sl, {
+        stopPrice: sl,
+        reduceOnly: true,
+        clientOrderId: clientOrderId(risk.idempotencyKey, "sl"),
+      });
+      orders.push({ type: "sl", ...slOrder });
+      console.log("SL order placed:", slOrder.id);
+    } catch (e: any) {
+      await cancelOrderSafely(exchange, symbol, entryOrder);
+      throw new Error(`SL order failed; entry order rollback attempted: ${e.message}`);
+    }
+
     try {
       const tp1Order = await exchange.createOrder(symbol, "limit", closeSide, tp1Quantity, tp1, {
         reduceOnly: true,
+        clientOrderId: clientOrderId(risk.idempotencyKey, "tp1"),
       });
       orders.push({ type: "tp1", ...tp1Order });
       console.log("TP1 order placed:", tp1Order.id);
@@ -144,10 +186,10 @@ Deno.serve(async (req: Request) => {
       orders.push({ type: "tp1", error: e.message });
     }
 
-    // 3. TP2 take-profit limit (reduce only)
     try {
       const tp2Order = await exchange.createOrder(symbol, "limit", closeSide, tp2Quantity, tp2, {
         reduceOnly: true,
+        clientOrderId: clientOrderId(risk.idempotencyKey, "tp2"),
       });
       orders.push({ type: "tp2", ...tp2Order });
       console.log("TP2 order placed:", tp2Order.id);
@@ -156,23 +198,10 @@ Deno.serve(async (req: Request) => {
       orders.push({ type: "tp2", error: e.message });
     }
 
-    // 4. SL stop-loss (reduce only)
-    try {
-      const slOrder = await exchange.createOrder(symbol, "stop", closeSide, totalQuantity, sl, {
-        stopPrice: sl,
-        reduceOnly: true,
-      });
-      orders.push({ type: "sl", ...slOrder });
-      console.log("SL order placed:", slOrder.id);
-    } catch (e: any) {
-      console.error("SL order failed:", e.message);
-      orders.push({ type: "sl", error: e.message });
-    }
-
-    // Log trade
     const hasErrors = orders.some((o: any) => o.error);
     await supabase.from("trade_logs").insert({
       user_id: userId,
+      idempotency_key: risk.idempotencyKey,
       exchange: exchangeName,
       symbol,
       entry_price: entry,
@@ -183,7 +212,7 @@ Deno.serve(async (req: Request) => {
       leverage,
       position_size: positionSize,
       status: hasErrors ? "partial" : "executed",
-      result: { orders },
+      result: { orders, risk: riskSummary(risk) },
     });
 
     return new Response(
@@ -191,6 +220,9 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
+    if (isGuardError(error)) {
+      return guardErrorResponse(error, corsHeaders);
+    }
     console.error("Trade execution error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(

@@ -4,6 +4,11 @@
 // verified JWT, so leaked or forged client-side credentials cannot be used.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import {
+  guardBinanceProxyRequest,
+  guardErrorResponse,
+  isGuardError,
+} from '../_shared/riskGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +30,7 @@ async function hmacSha256Hex(secret: string, msg: string): Promise<string> {
 interface ProxyReq {
   method: 'GET' | 'POST' | 'DELETE';
   endpoint: string;
-  params?: Record<string, string | number>;
+  params?: Record<string, string | number | boolean>;
 }
 
 Deno.serve(async (req) => {
@@ -46,7 +51,6 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     );
 
-    const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: claimsErr } = await supabase.auth.getUser();
     if (claimsErr || !claimsData?.user?.id) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -56,12 +60,8 @@ Deno.serve(async (req) => {
 
     // 2. Validate body
     const body = await req.json() as ProxyReq;
-    const { method, endpoint, params = {} } = body;
-    if (!method || !endpoint?.startsWith('/fapi/')) {
-      return new Response(JSON.stringify({ error: 'invalid_request' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const guarded = guardBinanceProxyRequest(body);
+    const { method, endpoint, params } = guarded;
 
     // 3. Look up credentials server-side using RLS (caller can only see their own row)
     const { data: keyRow, error: keyErr } = await supabase
@@ -96,6 +96,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    if (isGuardError(e)) {
+      return guardErrorResponse(e, corsHeaders);
+    }
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -13,6 +13,10 @@ interface TradingPanelProps {
   tradeParams: TradeParams;
 }
 
+function makeIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function TradingPanel({ tradeParams }: TradingPanelProps) {
   const [exchange, setExchange] = useState<Exchange>("binance");
   const [tpSplit, setTpSplit] = useState(50);
@@ -27,6 +31,7 @@ export function TradingPanel({ tradeParams }: TradingPanelProps) {
         body: {
           exchange,
           ...params,
+          idempotencyKey: makeIdempotencyKey(),
         },
       });
 

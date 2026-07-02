@@ -10,6 +10,19 @@ Status: Main Lovable project connected to GitHub
 
 Prepare the project so Codex, Claude, and Lovable can safely modify and review it without confusing it with old Remix versions.
 
+## Current Classification
+
+This repository is not dashboard-only.
+
+It is live-trading capable because it contains:
+
+- Supabase Edge Function trade execution through `execute-trade`
+- Binance Futures signed proxy through `binance-proxy`
+- API key storage in `exchange_api_keys`
+- UI paths that can call live order functions
+
+Treat the project as a high-risk trading application until server-side safety gates are strengthened.
+
 ## Current Priorities
 
 1. Keep this repository as the main source of truth.
@@ -17,6 +30,25 @@ Prepare the project so Codex, Claude, and Lovable can safely modify and review i
 3. Identify and document trading-related logic.
 4. Separate experiment changes from production changes.
 5. Keep all secrets out of GitHub.
+6. Do not enable live trading by default.
+7. Move critical risk controls from UI/localStorage into server-side enforcement.
+
+## Current Safety Implementation
+
+Server-side safety brake added:
+
+- `supabase/functions/_shared/riskGuard.ts`
+- `supabase/functions/execute-trade/index.ts`
+- `supabase/functions/binance-proxy/index.ts`
+- `supabase/migrations/20260702000100_add_trade_risk_guards.sql`
+
+Default behavior:
+
+- Live order execution is blocked unless `LIVE_TRADING_ENABLED=true` is configured server-side.
+- Only allowlisted symbols can be traded.
+- Server-side leverage, position size, estimated loss, and daily loss checks run before `execute-trade`.
+- `execute-trade` requires an idempotency key to reduce duplicate-order risk.
+- `binance-proxy` allows only specific Binance Futures endpoints and blocks unprotected market orders by default.
 
 ## Do Not Confuse With
 
@@ -27,8 +59,9 @@ Prepare the project so Codex, Claude, and Lovable can safely modify and review i
 
 ## Next Review Tasks
 
-- Inspect project structure.
-- Check for hardcoded secrets.
-- Review Supabase usage.
-- Review trading-related UI and logic.
-- Confirm whether this is dashboard-only or includes live trading logic.
+- Review `REPO_AUDIT_REPORT.md`.
+- Add server-side risk checks before live execution.
+- Restrict Binance proxy endpoints.
+- Unify API key storage forms.
+- Add idempotency and duplicate-order protection.
+- Add automated tests for live-trading safety gates.

@@ -13,6 +13,13 @@ export interface Creds { configured: true }
 
 const FLAG_KEY = 'binance_configured';
 
+function makeClientOrderId(label: string): string {
+  const rand =
+    globalThis.crypto?.randomUUID?.().replace(/-/g, '').slice(0, 18) ??
+    `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  return `ce_${label}_${rand}`.slice(0, 36);
+}
+
 export function loadCreds(): Creds | null {
   try {
     return localStorage.getItem(FLAG_KEY) === '1' ? { configured: true } : null;
@@ -80,8 +87,21 @@ export async function setLeverage(symbol: string, leverage: number, creds?: Cred
   return call('POST', '/fapi/v1/leverage', { symbol, leverage }, creds);
 }
 
-export async function placeMarketOrder(symbol: string, side: 'BUY' | 'SELL', quantity: number, creds?: Creds) {
-  return call('POST', '/fapi/v1/order', { symbol, side, type: 'MARKET', quantity }, creds);
+export async function placeMarketOrder(
+  symbol: string,
+  side: 'BUY' | 'SELL',
+  quantity: number,
+  creds?: Creds,
+  options: { reduceOnly?: boolean } = {},
+) {
+  return call('POST', '/fapi/v1/order', {
+    symbol,
+    side,
+    type: 'MARKET',
+    quantity,
+    newClientOrderId: makeClientOrderId(options.reduceOnly ? 'close' : 'mkt'),
+    ...(options.reduceOnly ? { reduceOnly: 'true' } : {}),
+  }, creds);
 }
 
 export async function placeSLTP(
@@ -93,11 +113,13 @@ export async function placeSLTP(
     symbol, side: closeSide, type: 'STOP_MARKET',
     stopPrice: slPrice.toFixed(2), closePosition: 'true',
     timeInForce: 'GTE_GTC', workingType: 'MARK_PRICE',
+    newClientOrderId: makeClientOrderId('sl'),
   }, creds);
   await call('POST', '/fapi/v1/order', {
     symbol, side: closeSide, type: 'TAKE_PROFIT_MARKET',
     stopPrice: tpPrice.toFixed(2), closePosition: 'true',
     timeInForce: 'GTE_GTC', workingType: 'MARK_PRICE',
+    newClientOrderId: makeClientOrderId('tp'),
   }, creds);
 }
 
@@ -131,5 +153,5 @@ export async function getOpenPositions(creds?: Creds): Promise<FuturesPosition[]
 
 export async function closePosition(symbol: string, positionAmt: number, creds?: Creds) {
   const side: 'BUY' | 'SELL' = positionAmt > 0 ? 'SELL' : 'BUY';
-  return placeMarketOrder(symbol, side, Math.abs(positionAmt), creds);
+  return placeMarketOrder(symbol, side, Math.abs(positionAmt), creds, { reduceOnly: true });
 }

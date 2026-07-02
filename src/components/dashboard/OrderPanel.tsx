@@ -23,6 +23,10 @@ interface OrderPanelProps {
 
 const ACCOUNT_USDT = 10000; // mock account balance for risk calc
 
+function makeIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function OrderPanel({ exchange }: OrderPanelProps) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [leverage, setLeverage] = useState(10);
@@ -75,6 +79,7 @@ export function OrderPanel({ exchange }: OrderPanelProps) {
           tpSplitRatio: 50,
           leverage,
           positionSize: size,
+          idempotencyKey: makeIdempotencyKey(),
         },
       });
 
