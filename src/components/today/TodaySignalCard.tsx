@@ -5,26 +5,16 @@ import { fetchKlines } from "@/utils/backtest";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
-import { EligibilityBadge } from "@/components/common/EligibilityBadge";
+import { ArrowRight, Loader2, ChevronDown, ChevronUp, AlertTriangle, Ban } from "lucide-react";
 import { BlockedReasonPanel } from "@/components/common/BlockedReasonPanel";
-import type { EligibilityResult, EligibilityState } from "@/utils/tradeEligibility";
-import { ELIGIBILITY_META } from "@/utils/tradeEligibility";
-
-type SignalState = "LONG_READY" | "SHORT_READY" | "WAIT" | "NO_TRADE";
-
-const STATE_META: Record<SignalState, { label: string; tone: string; bg: string; ring: string }> = {
-  LONG_READY:  { label: "LONG READY",  tone: "text-emerald-300", bg: "bg-emerald-500/15", ring: "ring-emerald-500/40" },
-  SHORT_READY: { label: "SHORT READY", tone: "text-red-300",     bg: "bg-red-500/15",     ring: "ring-red-500/40" },
-  WAIT:        { label: "WAIT",        tone: "text-amber-300",   bg: "bg-amber-500/15",   ring: "ring-amber-500/30" },
-  NO_TRADE:    { label: "NO TRADE",    tone: "text-muted-foreground", bg: "bg-muted/40",  ring: "ring-border" },
-};
+import { SafetyStatusBadge } from "@/components/common/SafetyStatusBadge";
+import type { EligibilityResult } from "@/utils/tradeEligibility";
+import { useGlobalSafety, SAFETY_META, type SafetyState } from "@/hooks/useGlobalSafety";
 
 interface Props {
   symbol: "BTC" | "ETH";
   timeframe?: "1h" | "4h";
   variant?: "primary" | "secondary" | "experimental";
-  /** 외부에서 제공된 검증 결과 (없으면 데모 기본값 사용) */
   eligibility?: EligibilityResult;
 }
 
@@ -32,11 +22,8 @@ function fmt(n: number, sym: "BTC" | "ETH") {
   return n.toLocaleString("en-US", { maximumFractionDigits: sym === "BTC" ? 1 : 2 });
 }
 
-/**
- * 데모 기본 eligibility — 현재 BTC/ETH 4H는 백테스트 기준 미달 상태로 표기.
- * (사용자 요구: PF 0.56/0.82 → BLOCKED)
- */
-function defaultEligibility(symbol: "BTC" | "ETH", tf: string): EligibilityResult {
+/** BTC/ETH 4H 데모 기본값: 현재 검증 미달 → BLOCKED. */
+function defaultEligibility(symbol: "BTC" | "ETH"): EligibilityResult {
   const isBTC = symbol === "BTC";
   return {
     state: "BLOCKED",
@@ -99,51 +86,40 @@ export function TodaySignalCard({ symbol, timeframe = "1h", variant = "primary",
     return () => { alive = false; };
   }, [symbol, timeframe]);
 
-  const eff = eligibility ?? defaultEligibility(symbol, timeframe);
-  const isBlocked = eff.state === "BLOCKED";
-  const isPaperOnly = eff.state === "PAPER_ONLY";
-  const isWatchOnly = eff.state === "WATCH_ONLY";
+  const eff = eligibility ?? defaultEligibility(symbol);
+  const safety = useGlobalSafety(eff);
+  const safetyMeta = SAFETY_META[safety.state];
+  const isBlocked = safety.state === "BLOCKED";
 
-  let state: SignalState = "NO_TRADE";
-  if (sig) {
-    if (sig.label === "STRONG_BUY" || sig.label === "BUY") state = "LONG_READY";
-    else if (sig.label === "STRONG_SELL" || sig.label === "SELL") state = "SHORT_READY";
-    else state = blockers.length > 1 ? "NO_TRADE" : "WAIT";
-  }
-  if (blockers.length >= 2 && (state === "LONG_READY" || state === "SHORT_READY")) {
-    state = "WAIT";
-  }
-  // 전략 검증 실패면 방향 라벨은 유지하되, BLOCKED가 화면 흐름을 지배.
-  const meta = STATE_META[state];
-  const eligMeta = ELIGIBILITY_META[eff.state];
+  // 방향성 참고 (BLOCKED여도 표시하되 "참고용"으로만)
+  let directionBias: "LONG" | "SHORT" | "NEUTRAL" = "NEUTRAL";
+  if (sig?.label === "STRONG_BUY" || sig?.label === "BUY") directionBias = "LONG";
+  else if (sig?.label === "STRONG_SELL" || sig?.label === "SELL") directionBias = "SHORT";
 
-  const isLong = state === "LONG_READY";
-  const isShort = state === "SHORT_READY";
+  // 4단계 상태 라벨 (BLOCKED가 항상 우선)
+  const stateLabel: SafetyState = safety.state;
+  const stateLabelText = isBlocked ? "BLOCKED" : safetyMeta.short;
+
+  const tfLabel = timeframe.toUpperCase();
 
   const ep1 = sig?.entry ?? price;
-  const ep2 = sig ? (isLong ? sig.entry * 0.997 : isShort ? sig.entry * 1.003 : sig.entry) : price;
+  const ep2 = sig ? (directionBias === "LONG" ? sig.entry * 0.997 : directionBias === "SHORT" ? sig.entry * 1.003 : sig.entry) : price;
   const tp1 = sig?.tp1 ?? 0;
   const tp2 = sig?.tp2 ?? 0;
-  const tp3 = sig ? (isLong ? sig.tp2 * 1.01 : isShort ? sig.tp2 * 0.99 : 0) : 0;
+  const tp3 = sig ? (directionBias === "LONG" ? sig.tp2 * 1.01 : directionBias === "SHORT" ? sig.tp2 * 0.99 : 0) : 0;
   const sl = sig?.sl ?? 0;
   const risk = sig ? Math.abs(ep1 - sl) : 0;
   const reward = sig ? Math.abs(tp1 - ep1) : 0;
   const rr = risk > 0 ? reward / risk : 0;
   const tp1Prob = sig ? Math.min(82, Math.max(35, Math.round(sig.score * 0.85))) : 0;
 
-  const tfLabel = timeframe.toUpperCase();
-  const modeLabel = isBlocked ? "ALERT_ONLY / BLOCKED" : isPaperOnly ? "ALERT_ONLY / PAPER" : "ALERT_ONLY";
-
   return (
-    <Card className={`p-4 border ring-1 ${eligMeta.ring} ${eligMeta.bg} relative overflow-hidden`}>
-      {/* Header — timeframe + eligibility 우선 표시 */}
+    <Card className={`p-4 border ring-1 ${safetyMeta.ring} ${safetyMeta.bg} relative overflow-hidden`}>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <h3 className="text-lg font-bold tracking-tight">
-            {symbol}USDT
-          </h3>
+          <h3 className="text-lg font-bold tracking-tight">{symbol}USDT</h3>
           <span className="text-[11px] text-muted-foreground font-mono">
-            선물 · {tfLabel} · {modeLabel}
+            선물 · {tfLabel} · ALERT_ONLY
           </span>
           {variant === "secondary" && (
             <Badge variant="outline" className="text-[10px] border-border/60">보조 관찰</Badge>
@@ -153,10 +129,19 @@ export function TodaySignalCard({ symbol, timeframe = "1h", variant = "primary",
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <EligibilityBadge state={eff.state} />
-          <Badge variant="outline" className={`${meta.tone} border-current font-bold tracking-wider text-[10px]`}>
-            {meta.label}
-          </Badge>
+          <SafetyStatusBadge state={stateLabel} />
+          {directionBias !== "NEUTRAL" && (
+            <Badge
+              variant="outline"
+              className={`text-[9px] border-border/60 ${
+                isBlocked ? 'text-muted-foreground line-through decoration-1' :
+                directionBias === "LONG" ? 'text-emerald-300' : 'text-red-300'
+              }`}
+              title={isBlocked ? "방향성 참고용 — 전략 검증 실패로 진입 차단" : ""}
+            >
+              {directionBias} {isBlocked && "(참고용)"}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -172,8 +157,7 @@ export function TodaySignalCard({ symbol, timeframe = "1h", variant = "primary",
 
       {sig && !loading && !err && (
         <>
-          {/* BLOCKED/PAPER_ONLY/WATCH_ONLY 카드가 상단을 지배 */}
-          {(isBlocked || isPaperOnly || isWatchOnly) && (
+          {isBlocked && (
             <div className="mb-3">
               <BlockedReasonPanel result={eff} />
             </div>
@@ -184,13 +168,12 @@ export function TodaySignalCard({ symbol, timeframe = "1h", variant = "primary",
             <span className="text-xs text-muted-foreground font-mono">통합점수 {sig.score}/100</span>
           </div>
 
-          {/* Levels — BLOCKED 시 접힘 + blur */}
           {isBlocked ? (
             <button
               onClick={() => setShowLevels(v => !v)}
               className="w-full text-left rounded border border-border/50 bg-background/40 p-2 mb-3 text-[11px] text-muted-foreground flex items-center justify-between hover:bg-background/60 transition"
             >
-              <span>진입 가격 (EP/SL/TP) 보기 — 참고용, 실거래 금지</span>
+              <span>진입 가격 (EP/SL/TP) 보기 — <span className="text-red-300">실행 불가 · 참고용</span></span>
               {showLevels ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           ) : null}
@@ -208,18 +191,9 @@ export function TodaySignalCard({ symbol, timeframe = "1h", variant = "primary",
                 <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Risk</span><span className="tabular-nums">${fmt(risk, symbol)}</span></div>
               </div>
               <div className="col-span-2 rounded border border-emerald-500/30 bg-emerald-500/5 p-2 grid grid-cols-3 gap-2">
-                <div>
-                  <div className="text-[10px] text-emerald-300/80 uppercase tracking-wider">TP1</div>
-                  <div className="tabular-nums text-emerald-300">${fmt(tp1, symbol)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-emerald-300/80 uppercase tracking-wider">TP2</div>
-                  <div className="tabular-nums text-emerald-300">${fmt(tp2, symbol)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-emerald-300/80 uppercase tracking-wider">TP3</div>
-                  <div className="tabular-nums text-emerald-300/80">${fmt(tp3, symbol)}</div>
-                </div>
+                <div><div className="text-[10px] text-emerald-300/80 uppercase tracking-wider">TP1</div><div className="tabular-nums text-emerald-300">${fmt(tp1, symbol)}</div></div>
+                <div><div className="text-[10px] text-emerald-300/80 uppercase tracking-wider">TP2</div><div className="tabular-nums text-emerald-300">${fmt(tp2, symbol)}</div></div>
+                <div><div className="text-[10px] text-emerald-300/80 uppercase tracking-wider">TP3</div><div className="tabular-nums text-emerald-300/80">${fmt(tp3, symbol)}</div></div>
               </div>
             </div>
           )}
@@ -233,10 +207,9 @@ export function TodaySignalCard({ symbol, timeframe = "1h", variant = "primary",
             </div>
           )}
 
-          {/* WAIT 시 진입 대기 사유 (BLOCKED와 구분) */}
           {!isBlocked && blockers.length > 0 && (
             <div className="rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-200/90 mb-3 space-y-1">
-              <div className="text-[10px] text-amber-300/80 font-semibold uppercase tracking-wider">진입 대기 사유 (WAIT)</div>
+              <div className="text-[10px] text-amber-300/80 font-semibold uppercase tracking-wider">진입 대기 사유 (WATCH)</div>
               {blockers.map((b, i) => (
                 <div key={i} className="flex items-start gap-1.5">
                   <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
@@ -246,13 +219,31 @@ export function TodaySignalCard({ symbol, timeframe = "1h", variant = "primary",
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">
-              ※ 진입 전 <Link to="/verification" className="underline">전략 검증</Link> 결과 확인
-            </span>
-            <Button asChild size="sm" variant="outline" className="h-7 text-[11px]">
+          {/* 실행 버튼 — BLOCKED 시 비활성화 */}
+          <div className="flex items-center justify-between gap-2">
+            {isBlocked ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                className="h-8 text-[11px] flex-1 border-red-500/40 text-red-300/70 bg-red-500/5 cursor-not-allowed"
+                title="전략 검증 실패로 차단됨"
+              >
+                <Ban className="h-3 w-3 mr-1" />
+                전략 검증 실패로 차단됨
+              </Button>
+            ) : safety.state === 'PAPER_READY' ? (
+              <Button size="sm" variant="outline" disabled className="h-8 text-[11px] flex-1 border-sky-500/40 text-sky-300/80 bg-sky-500/5">
+                Paper Mode에서 추가 검증 필요
+              </Button>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">
+                ※ 진입 전 <Link to="/verification" className="underline">전략 검증</Link> 확인
+              </span>
+            )}
+            <Button asChild size="sm" variant="ghost" className="h-8 text-[11px] shrink-0">
               <Link to={`/verification?symbol=${symbol}USDT`}>
-                전략 검증 보기 <ArrowRight className="ml-1 h-3 w-3" />
+                검증 상세 <ArrowRight className="ml-1 h-3 w-3" />
               </Link>
             </Button>
           </div>

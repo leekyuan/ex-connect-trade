@@ -70,6 +70,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </header>
           <main className="flex-1 overflow-auto p-4 pb-20 md:pb-4">
             {children}
+            <footer className="mt-8 pt-4 border-t border-border/40 text-[11px] text-muted-foreground leading-relaxed text-center max-w-4xl mx-auto">
+              본 시스템은 <strong className="text-foreground/80">매매 의사결정 보조 도구</strong>이며,
+              수익을 보장하지 않습니다. 모든 신호는 <strong className="text-foreground/80">Paper 검증 후</strong> 사용하세요.
+            </footer>
           </main>
         </div>
 

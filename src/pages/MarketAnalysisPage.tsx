@@ -16,6 +16,9 @@ import { IctWyckoffMonitor } from '@/components/MarketAnalysis/IctWyckoffMonitor
 import { ProMarketPanel } from '@/components/MarketAnalysis/ProMarketPanel';
 import { NewsCatalystCard } from '@/components/MarketAnalysis/NewsCatalystCard';
 import { AITradingAssistant } from '@/components/dashboard/AITradingAssistant';
+import { SafetyStatusCard } from '@/components/common/SafetyStatusCard';
+import { useGlobalSafety } from '@/hooks/useGlobalSafety';
+import type { EligibilityResult } from '@/utils/tradeEligibility';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LABEL_META } from '@/utils/unifiedSignal';
 import { buildMasterPlan } from '@/utils/masterPlan';
@@ -99,6 +102,20 @@ export default function MarketAnalysisPage() {
     () => buildMasterPlan(multi, neo.candles, currentPrice),
     [multi, neo.candles, currentPrice],
   );
+
+  // ── Global Safety — BTC/ETH 는 데모 기본값(BLOCKED), 그 외 미결 ──
+  const eligibility: EligibilityResult | null = useMemo(() => {
+    if (symbol === 'BTC' || symbol === 'ETH') {
+      return {
+        state: 'BLOCKED', hardBlock: true, passCount: 0, totalGates: 7,
+        reasons: symbol === 'BTC'
+          ? ['Profit Factor 0.56 < 1.30', 'Avg R -0.19 < +0.07', 'OOS PF 0.64 < 1.20', 'Rolling30 PF 0.38 < 1.10']
+          : ['Profit Factor 0.82 < 1.30', 'Avg R -0.06 < +0.07', 'OOS PF 0.76 < 1.20', 'Rolling30 PF 0.26 < 1.10'],
+      };
+    }
+    return null;
+  }, [symbol]);
+  const safety = useGlobalSafety(eligibility);
 
   // ── AI 코치 컨텍스트 ──
   const aiContext = useMemo(() => {
@@ -326,18 +343,40 @@ export default function MarketAnalysisPage() {
           </div>
 
           <div className="space-y-4">
-            {/* 최종 매매 플랜 — 모든 뷰 공통 */}
-            <MasterTradePlanCard plan={masterPlan} symbol={symbol} currentPrice={currentPrice} />
+            {/* 1) Current Safety Status — 우측 패널 최상단 */}
+            <SafetyStatusCard
+              safety={safety}
+              extraReasons={eligibility?.reasons.slice(0, 4)}
+            />
 
-            {/* ICT/와이코프 실시간 모니터 */}
+            {/* 2) Current Setup — 통합 신호(방향/TF/트리거) */}
+            {multi && (
+              <UnifiedSignalPanel
+                symbol={`${symbol} · ${multi.primaryTf.label}`}
+                signal={multi.primarySignal}
+                loading={loading}
+              />
+            )}
+
+            {/* 3) Risk Plan — EP/SL/TP + 실행 CTA (BLOCKED 시 잠김) */}
+            <MasterTradePlanCard
+              plan={masterPlan}
+              symbol={symbol}
+              currentPrice={currentPrice}
+              safetyState={safety.state}
+            />
+
+            {/* 4) Evidence — 백테스트 지표 */}
+            <SignalBacktestCard symbol={symbol} groupLabel={STYLE_GROUPS[group].label} />
+
+            {/* 5) Advanced — ICT/와이코프, 시나리오, 하모닉 */}
             <IctWyckoffMonitor
               candles={neo.candles}
               currentPrice={currentPrice}
               live={neo.live}
               lastUpdate={neo.lastUpdate}
             />
-
-            {chartView === 'neowave' ? (
+            {chartView === 'neowave' && (
               <>
                 <NeoWaveScenarioPanel
                   result={neo.result}
@@ -351,25 +390,7 @@ export default function MarketAnalysisPage() {
                   candles={neo.candles}
                   currentPrice={currentPrice}
                 />
-                <SignalBacktestCard symbol={symbol} groupLabel={STYLE_GROUPS[group].label} />
               </>
-            ) : (
-              loading && !multi ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-32 w-full rounded-xl" />
-                  <Skeleton className="h-40 w-full rounded-xl" />
-                  <Skeleton className="h-24 w-full rounded-xl" />
-                </div>
-              ) : (
-                <>
-                  <UnifiedSignalPanel
-                    symbol={`${symbol} · ${multi?.primaryTf.label ?? ''}`}
-                    signal={multi?.primarySignal ?? null}
-                    loading={loading}
-                  />
-                  <SignalBacktestCard symbol={symbol} groupLabel={STYLE_GROUPS[group].label} />
-                </>
-              )
             )}
           </div>
         </div>
