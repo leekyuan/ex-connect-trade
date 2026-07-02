@@ -98,6 +98,21 @@ export default function MarketScreenerPage() {
           </div>
         </header>
 
+        {/* TOP 5 진입 후보 — 기본 화면 */}
+        <TopCandidatesPanel rows={rows} onOpen={setOpenSym} />
+
+        {/* Advanced Table — 전체 30개 (접기/펼치기) */}
+        <button
+          onClick={() => setShowAdvanced(v => !v)}
+          className="w-full flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2.5 text-xs font-semibold hover:bg-muted/40 transition"
+        >
+          <span className="flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
+            Advanced Table · 전체 30개 스크리너 (단일뷰 · MTF 매트릭스)
+          </span>
+          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+
+        {showAdvanced && (
         <Tabs value={view} onValueChange={(v) => setView(v as 'single' | 'mtf')}>
           <TabsList>
             <TabsTrigger value="single">단일뷰 (1H)</TabsTrigger>
