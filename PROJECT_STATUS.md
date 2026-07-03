@@ -52,26 +52,27 @@ Default behavior:
 
 ## Supabase Deployment Status
 
-Active Supabase production project ref: `hoylvkjlkkvwiqvxuajx`
+Active backend: **Lovable Cloud (managed Supabase)**.
 
-Deployment status on 2026-07-02:
+Standby/backup (NOT in use): external Supabase project `hoylvkjlkkvwiqvxuajx` (`cryptoedgeai-production`). Kept as a disaster-recovery candidate only. Do not point the frontend at it without an explicit migration plan.
 
-- New clean Supabase production project created: `cryptoedgeai-production`.
-- Local project linked to `hoylvkjlkkvwiqvxuajx`.
-- Full local migration history applied successfully from scratch.
-- Migration history is aligned between local files and the production DB.
-- `LIVE_TRADING_ENABLED=false` configured in Supabase Edge Function secrets.
-- Risk guard secrets configured for symbol allowlist, leverage cap, position cap, and loss caps.
-- `execute-trade` deployed and ACTIVE.
-- `binance-proxy` deployed and ACTIVE.
-- Unauthenticated HTTP checks return 401, as expected.
+Verified on 2026-07-03:
 
-Legacy schema note:
+- Lovable Cloud connection healthy; DB/Auth/Edge Functions responding.
+- Frontend env vars auto-managed by Cloud; `.env` / `.env.local` untouched.
+- `LIVE_TRADING_ENABLED` unset → live trading hard-blocked by `_shared/riskGuard.ts`.
+- `execute-trade`: JWT-gated, idempotency-key required, server-side leverage/size/loss caps, mandatory SL fail-closed.
+- `binance-proxy`: JWT-gated, endpoint allowlist, market orders without `reduceOnly` rejected.
+- API keys stored in `exchange_api_keys` (RLS: `auth.uid() = user_id`); no localStorage fallback.
+- Paper Mode default ON via `useGlobalSafety`; `PaperTradingPanel` routes through simulation.
 
-- Previous project `hquupjdbfughvvffqctv` had a different legacy schema than the local migration history.
-- Do not use `hquupjdbfughvvffqctv` as the main production DB for this repo.
-- Continue development against `hoylvkjlkkvwiqvxuajx` unless explicitly migrating again.
-- Live trading must remain disabled until authenticated app flows, API-key storage, exchange behavior, and emergency procedures are tested end-to-end.
+
+
+Historical note (2026-07-02): the standby project `hoylvkjlkkvwiqvxuajx` was previously provisioned with a full migration baseline and risk-guard secrets. It is retained as a cold backup only; the running app now uses Lovable Cloud.
+
+Legacy: `hquupjdbfughvvffqctv` is deprecated — do not target.
+
+Live trading must remain disabled until authenticated app flows, API-key storage, exchange behavior, and emergency procedures are tested end-to-end.
 
 ## Do Not Confuse With
 
@@ -80,11 +81,49 @@ Legacy schema note:
 - Backup versions
 - Test-only dashboards
 
+## Manual QA Checklist (Auth → Dashboard → Paper → API Key)
+
+Run against the preview URL. Do NOT enable `LIVE_TRADING_ENABLED`. Do NOT enter real exchange keys with withdraw permission.
+
+### 1. Signup / Login
+- [ ] Open `/auth`; sign up with a fresh email → success toast, redirected to dashboard.
+- [ ] Log out (if UI exposes it) then log back in with same credentials → session restored.
+- [ ] Refresh page → session persists (Supabase auth cookie/localStorage intact).
+- [ ] Anonymous visitor auto-gets a guest session (`AuthContext` anonymous sign-in) → no crash on protected routes.
+- [ ] Row in `profiles` auto-created via trigger; row in `subscriptions` (free plan) auto-created.
+
+### 2. Dashboard load
+- [ ] `/` (Today Signal) renders without console errors.
+- [ ] BTC/ETH 4H signal cards show a status badge (BLOCKED / WATCH / PAPER_READY / LIVE_READY).
+- [ ] If strategy is BLOCKED, no "LONG READY / SHORT READY" CTA is visible and execution buttons are disabled.
+- [ ] Sidebar navigation to Verification, Security, Market Screener, Backtest all load without 500s.
+- [ ] Global disclaimer bar visible at bottom.
+
+### 3. Paper Mode
+- [ ] `/security` → Risk Limits form: Paper Mode toggle is ON by default.
+- [ ] Toggle Paper Mode OFF → Global Safety status flips to BLOCKED (paper required).
+- [ ] Toggle Paper Mode ON → status returns to PAPER_READY / LIVE_READY per strategy gates.
+- [ ] `PaperTradingPanel`: submit a simulated order → appears in trade history as paper (no network call to `execute-trade`).
+- [ ] Network tab: no calls to `/functions/v1/execute-trade` while in Paper Mode.
+
+### 4. API Key save UI
+- [ ] `/security` → open API Safety Modal. Confirm 3 safety checkboxes are required before form unlocks.
+- [ ] Enter dummy Binance testnet keys → Save → success toast.
+- [ ] Verify write lands in `exchange_api_keys` table (RLS scoped to `auth.uid()`), NOT in `localStorage` (DevTools → Application → Local Storage should not contain plaintext keys).
+- [ ] Reload page → "API 연결됨" indicator persists.
+- [ ] Click "연결 테스트" → calls `binance-proxy` with JWT; returns 401 without JWT, 200 with valid session.
+- [ ] Delete key → row removed from `exchange_api_keys`; UI reflects disconnected state.
+- [ ] Attempt "Execute Live Order" while `LIVE_TRADING_ENABLED` is false → server responds with risk-guard block; UI shows blocked message.
+
+### 5. Regression / safety
+- [ ] No console errors on any of: `/`, `/verification`, `/backtest`, `/market-screener`, `/security`, `/settings`.
+- [ ] Edge function logs (Cloud → Functions) show no unhandled exceptions during the run.
+- [ ] `execute-trade` unauth call returns 401.
+- [ ] `binance-proxy` unauth call returns 401.
+
 ## Next Review Tasks
 
-- Review `REPO_AUDIT_REPORT.md`.
-- Update Lovable/frontend environment variables to point to `hoylvkjlkkvwiqvxuajx`.
-- Test signup/login and RLS flows on the clean production DB.
-- Test paper-mode UI flows before any live exchange keys are added.
-- Unify API key storage forms and verify `exchange_api_keys` writes work through RLS.
+- Automate the checklist above with Playwright.
 - Add automated tests for live-trading safety gates.
+- Re-run security scan after next migration.
+

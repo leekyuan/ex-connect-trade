@@ -4,6 +4,15 @@ All important project changes should be recorded here.
 
 ## [Unreleased]
 
+### Backend Status (2026-07-03)
+
+- Active backend: **Lovable Cloud** (managed Supabase). Frontend env vars (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`) are auto-managed by Cloud and must not be edited manually.
+- External Supabase project `hoylvkjlkkvwiqvxuajx` is **standby/backup only** — not connected to the running app.
+- `LIVE_TRADING_ENABLED` remains unset (default `false`). Server-side risk guard hard-blocks live orders.
+- `execute-trade` and `binance-proxy` retain JWT validation, allowlist, idempotency, and reduce-only enforcement. Do not disable.
+
+
+
 ### Added
 
 - Main project documentation workflow
