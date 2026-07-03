@@ -52,7 +52,21 @@ Default behavior:
 
 ## Supabase Deployment Status
 
-Active Supabase production project ref: `hoylvkjlkkvwiqvxuajx`
+Active backend: **Lovable Cloud (managed Supabase)**.
+
+Standby/backup (NOT in use): external Supabase project `hoylvkjlkkvwiqvxuajx` (`cryptoedgeai-production`). Kept as a disaster-recovery candidate only. Do not point the frontend at it without an explicit migration plan.
+
+Verified on 2026-07-03:
+
+- Lovable Cloud connection healthy; DB/Auth/Edge Functions responding.
+- Frontend env vars auto-managed by Cloud; `.env` / `.env.local` untouched.
+- `LIVE_TRADING_ENABLED` unset → live trading hard-blocked by `_shared/riskGuard.ts`.
+- `execute-trade`: JWT-gated, idempotency-key required, server-side leverage/size/loss caps, mandatory SL fail-closed.
+- `binance-proxy`: JWT-gated, endpoint allowlist, market orders without `reduceOnly` rejected.
+- API keys stored in `exchange_api_keys` (RLS: `auth.uid() = user_id`); no localStorage fallback.
+- Paper Mode default ON via `useGlobalSafety`; `PaperTradingPanel` routes through simulation.
+
+
 
 Deployment status on 2026-07-02:
 
