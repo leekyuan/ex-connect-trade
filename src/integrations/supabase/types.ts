@@ -464,7 +464,6 @@ export type Database = {
           entry_price: number
           exchange: string
           id: string
-          idempotency_key: string | null
           leverage: number
           position_size: number
           result: Json | null
@@ -481,7 +480,6 @@ export type Database = {
           entry_price: number
           exchange: string
           id?: string
-          idempotency_key?: string | null
           leverage: number
           position_size: number
           result?: Json | null
@@ -498,7 +496,6 @@ export type Database = {
           entry_price?: number
           exchange?: string
           id?: string
-          idempotency_key?: string | null
           leverage?: number
           position_size?: number
           result?: Json | null
