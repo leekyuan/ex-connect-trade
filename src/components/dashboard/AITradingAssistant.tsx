@@ -3,6 +3,7 @@ import { Bot, Send, Sparkles, Loader2, X, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -47,11 +48,17 @@ export function AITradingAssistant({ context, subtitle, embedded }: Props = {}) 
     let acc = '';
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken =
+        sessionData?.session?.access_token ??
+        (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
+
       const resp = await fetch(STREAM_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
         },
         body: JSON.stringify({ messages: [...messages, userMsg], context }),
         signal: controller.signal,
