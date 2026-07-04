@@ -106,18 +106,18 @@ const PERIOD_DAYS: Record<Period, number> = { '1m': 30, '3m': 90, '6m': 180, '1y
 const FEE = 0.0004;
 const SLIP = 0.0005;
 const INTERVAL = '4h'; // 4H봉 — 노이즈 감소, 추세 추종 강화
-const COOLDOWN_BARS = 6;
-const MIN_SCORE_BUY = 75;
-const MIN_SCORE_SELL = 25;
-// v4 — RSI 밴드: 롱 40~70, 숏 30~60
-const RSI_LONG_MIN = 40;
-const RSI_LONG_MAX = 70;
-const RSI_SHORT_MIN = 30;
-const RSI_SHORT_MAX = 60;
-const VOL_FILTER_MULT = 0.7;
-const MAX_EXPANSION_ATR = 2.5;
-// v4 — 변동성 레짐 필터: ATR(14) ≥ ATR50평균 × 1.0 (횡보장 차단)
-const ATR_REGIME_MULT = 1.0;
+const COOLDOWN_BARS = 2;
+const MIN_SCORE_BUY = 65;
+const MIN_SCORE_SELL = 35;
+// 완화 — 표본 확보를 위해 RSI 밴드 확장
+const RSI_LONG_MIN = 35;
+const RSI_LONG_MAX = 78;
+const RSI_SHORT_MIN = 22;
+const RSI_SHORT_MAX = 65;
+const VOL_FILTER_MULT = 0.5;
+const MAX_EXPANSION_ATR = 3.5;
+// 변동성 레짐 완화 — 저변동 국면도 일부 허용
+const ATR_REGIME_MULT = 0.75;
 // v4 — SL/TP/Trail
 const SL_ATR_MULT = 1.5;
 const TP_ATR_MULT = 3.0;            // RR 1:2 확보
