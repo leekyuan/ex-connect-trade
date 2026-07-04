@@ -364,43 +364,36 @@ function simulate(
       const goesShort = sig.label === 'STRONG_SELL' || (sig.label === 'SELL' && sig.score <= MIN_SCORE_SELL);
       if (!goesLong && !goesShort) continue;
 
-      // EMA200 추세 필터 + slope
+      // EMA200 추세 필터 — slope 조건 제거(위/아래만 확인)
       const e200 = ema200[i];
-      const e200Prev = ema200[i - 10];
-      if (config.useTrendFilter && isFinite(e200) && isFinite(e200Prev)) {
-        const slopeUp = e200 > e200Prev;
-        if (goesLong && (cur.close < e200 || !slopeUp)) continue;
-        if (goesShort && (cur.close > e200 || slopeUp)) continue;
+      if (config.useTrendFilter && isFinite(e200)) {
+        if (goesLong && cur.close < e200) continue;
+        if (goesShort && cur.close > e200) continue;
       }
 
-      // v4 — RSI 밴드 필터: 롱 40~70, 숏 30~60
+      // RSI 밴드 필터 (완화됨)
       const r = rsi[i];
       if (isFinite(r)) {
         if (goesLong && (r < RSI_LONG_MIN || r > RSI_LONG_MAX)) continue;
         if (goesShort && (r < RSI_SHORT_MIN || r > RSI_SHORT_MAX)) continue;
       }
 
-      // v4 — ATR 변동성 레짐 필터 (횡보장 차단)
+      // ATR 변동성 레짐 필터 (완화)
       const aSma = atrSma[i];
       if (isFinite(aSma) && aSma > 0 && a < aSma * ATR_REGIME_MULT) continue;
 
-      // 거래량 빈약 차단
+      // 거래량 빈약 차단 (완화)
       const vs = volSma[i];
       if (isFinite(vs) && vs > 0 && cur.volume < vs * VOL_FILTER_MULT) continue;
 
-      // FOMO (EMA20 거리 차단)
+      // FOMO (EMA20 거리 차단, 완화)
       const e20 = ema20[i];
       if (isFinite(e20) && a > 0) {
         const dist = Math.abs(cur.close - e20) / a;
         if (dist > MAX_EXPANSION_ATR) continue;
       }
 
-      // 신호 2봉 지속
-      const prevSig = computeUnifiedSignal(candles.slice(0, i), candles[i - 1].close);
-      if (prevSig) {
-        if (goesLong && !(prevSig.label === 'BUY' || prevSig.label === 'STRONG_BUY')) continue;
-        if (goesShort && !(prevSig.label === 'SELL' || prevSig.label === 'STRONG_SELL')) continue;
-      }
+      // 2봉 지속 필터는 제거 — 표본 확보를 위해 단일 봉 신호 허용
 
       const side: 'LONG' | 'SHORT' = goesLong ? 'LONG' : 'SHORT';
 
