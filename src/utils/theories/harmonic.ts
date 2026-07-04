@@ -159,8 +159,8 @@ export function analyzeHarmonic(candles: Candle[], price: number): HarmonicTheor
       const entry = price;
       const sl = bias === 'bullish' ? D - a * 1.2 : D + a * 1.2;
       const risk = Math.abs(entry - sl);
-      const tp1 = bias === 'bullish' ? entry + risk * 1.5 : entry - risk * 1.5;
-      const tp2 = bias === 'bullish' ? entry + risk * 2.5 : entry - risk * 2.5;
+      const tp1 = bias === 'bullish' ? entry + risk * 2.0 : entry - risk * 2.0;
+      const tp2 = bias === 'bullish' ? entry + risk * 3.0 : entry - risk * 3.0;
       const pattern: HarmonicPattern = {
         name: 'AB=CD', bias,
         points: [
