@@ -398,13 +398,16 @@ function simulate(
 
       const side: 'LONG' | 'SHORT' = goesLong ? 'LONG' : 'SHORT';
 
-      // v4 — SL = ATR×1.5, TP = ATR×3.0
+      // v4 — SL = ATR×1.5, TP = ATR×3.0 (RR 2:1 강제)
       const rawEntry = next.open;
       const entry = side === 'LONG' ? rawEntry * (1 + SLIP) : rawEntry * (1 - SLIP);
       const slDist = a * SL_ATR_MULT;
-      const tpDist = a * TP_ATR_MULT;
+      const tpDist = Math.max(a * TP_ATR_MULT, slDist * MIN_RR);
       const sl = side === 'LONG' ? entry - slDist : entry + slDist;
       const tp1 = side === 'LONG' ? entry + tpDist : entry - tpDist;
+      // 안전장치: RR < 2 이면 진입 스킵 (거의 발생하지 않지만 보호)
+      const rr = tpDist / slDist;
+      if (rr < MIN_RR) continue;
 
       // v4 — Kelly 사이징 (롤링 통계 기반, 10% 상한)
       const kellyPct = computeKellyPct(trades);
@@ -435,7 +438,7 @@ function simulate(
     }
 
     // Equity snapshot (일봉)
-    if (i % 6 === 0 || i === endIdx - 1) {
+    if (i % 24 === 0 || i === endIdx - 1) {
       let mark = cash;
       if (position) {
         const dir = position.side === 'LONG' ? 1 : -1;
@@ -491,7 +494,7 @@ function simulate(
   const sortino = downStd > 0 ? (avgRet / downStd) * Math.sqrt(252) : 0;
 
   // CAGR
-  const yearFrac = (endIdx - startIdx) / (6 * 365); // 4H봉 기준 (하루 6봉)
+  const yearFrac = (endIdx - startIdx) / (24 * 365); // 1H봉 기준 (하루 24봉)
   const cagr = yearFrac > 0
     ? (Math.pow(finalEquity / config.initialCash, 1 / yearFrac) - 1) * 100
     : 0;
