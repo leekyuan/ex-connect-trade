@@ -118,16 +118,16 @@ export function analyzeHarmonic(candles: Candle[], price: number): HarmonicTheor
       const przHalf = a * 0.6;
       const prz = { low: D - przHalf, high: D + przHalf };
 
-      // Entry/SL/TP — D 반전 매매
+      // Entry/SL/TP — D 반전 매매 (RR 최소 2:1 강제)
       const entry = bias === 'bullish' ? Math.max(price, D + a * 0.05) : Math.min(price, D - a * 0.05);
       const sl = bias === 'bullish' ? D - a * 1.2 : D + a * 1.2;
       const risk = Math.abs(entry - sl);
       const tp1 = bias === 'bullish'
-        ? entry + Math.max(XA * 0.382, risk * 1.5)
-        : entry - Math.max(XA * 0.382, risk * 1.5);
+        ? entry + Math.max(XA * 0.382, risk * 2.0)
+        : entry - Math.max(XA * 0.382, risk * 2.0);
       const tp2 = bias === 'bullish'
-        ? entry + Math.max(XA * 0.618, risk * 2.5)
-        : entry - Math.max(XA * 0.618, risk * 2.5);
+        ? entry + Math.max(XA * 0.618, risk * 3.0)
+        : entry - Math.max(XA * 0.618, risk * 3.0);
 
       const window5: HarmonicPoint[] = window.map((p, idx) => ({
         ...p, label: (['X', 'A', 'B', 'C', 'D'][idx] as HarmonicPoint['label']),

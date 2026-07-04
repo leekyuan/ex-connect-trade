@@ -265,29 +265,33 @@ export function computeUnifiedSignal(candles: Candle[], price: number): UnifiedS
   // SR zones
   const { res, sup } = srZones(candles, price);
 
-  // Entry / TP / SL based on label direction
+  // Entry / TP / SL based on label direction — 손익비(RR) 최소 2:1 강제
   const isBuy = label === 'STRONG_BUY' || label === 'BUY';
   const isSell = label === 'STRONG_SELL' || label === 'SELL';
   const atr = calcATR(candles, 14);
   const atrV = atr[atr.length - 1] || price * 0.01;
+  const MIN_RR = 2.0;
 
   let entry = price;
   let tp1: number, tp2: number, sl: number;
   if (isBuy) {
     entry = Math.max(price - atrV * 0.3, sup[0].high); // 살짝 눌림 진입
-    tp1 = res[0].price;
-    tp2 = res[1].price;
     sl = sup[0].low - atrV * 0.5;
+    const risk = Math.max(entry - sl, atrV * 0.5);
+    tp1 = Math.max(res[0].price, entry + risk * MIN_RR);
+    tp2 = Math.max(res[1].price, entry + risk * (MIN_RR + 1));
   } else if (isSell) {
     entry = Math.min(price + atrV * 0.3, res[0].low);
-    tp1 = sup[0].price;
-    tp2 = sup[1].price;
     sl = res[0].high + atrV * 0.5;
+    const risk = Math.max(sl - entry, atrV * 0.5);
+    tp1 = Math.min(sup[0].price, entry - risk * MIN_RR);
+    tp2 = Math.min(sup[1].price, entry - risk * (MIN_RR + 1));
   } else {
     entry = price;
-    tp1 = res[0].price;
-    tp2 = res[1].price;
     sl = sup[0].low;
+    const risk = Math.max(entry - sl, atrV * 0.5);
+    tp1 = Math.max(res[0].price, entry + risk * MIN_RR);
+    tp2 = Math.max(res[1].price, entry + risk * (MIN_RR + 1));
   }
 
   // 1줄 코멘트 (Rule-based AI 톤)
