@@ -1,4 +1,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+
+
 
 const CMC_API_KEY = Deno.env.get('CMC_API_KEY') ?? '';
 const CMC_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest';
