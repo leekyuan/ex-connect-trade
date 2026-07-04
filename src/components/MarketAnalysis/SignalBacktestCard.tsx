@@ -103,7 +103,7 @@ export function SignalBacktestCard({ symbol, groupLabel }: Props) {
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[10px] text-muted-foreground">
-          {symbol}/USDT · 4H봉 · 통합 신호 엔진(STRONG 필터) {groupLabel ? `· ${groupLabel}` : ''}
+          {symbol}/USDT · 1H봉 · 통합 신호 엔진(STRONG 필터) · RR 2:1 강제 {groupLabel ? `· ${groupLabel}` : ''}
         </p>
         {result && (
           verified ? (

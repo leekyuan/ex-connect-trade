@@ -105,22 +105,23 @@ export interface PFBacktestResult {
 const PERIOD_DAYS: Record<Period, number> = { '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
 const FEE = 0.0004;
 const SLIP = 0.0005;
-const INTERVAL = '4h'; // 4H봉 — 노이즈 감소, 추세 추종 강화
+const INTERVAL = '1h'; // 1H봉 — 표본 4배 확보, RR은 ATR로 유지
 const COOLDOWN_BARS = 2;
-const MIN_SCORE_BUY = 65;
-const MIN_SCORE_SELL = 35;
-// 완화 — 표본 확보를 위해 RSI 밴드 확장
-const RSI_LONG_MIN = 35;
-const RSI_LONG_MAX = 78;
-const RSI_SHORT_MIN = 22;
-const RSI_SHORT_MAX = 65;
-const VOL_FILTER_MULT = 0.5;
-const MAX_EXPANSION_ATR = 3.5;
-// 변동성 레짐 완화 — 저변동 국면도 일부 허용
-const ATR_REGIME_MULT = 0.75;
-// v4 — SL/TP/Trail
+const MIN_SCORE_BUY = 60;
+const MIN_SCORE_SELL = 40;
+// 완화 — 표본 확보를 위해 RSI 밴드 확장(사실상 극단 제외만)
+const RSI_LONG_MIN = 30;
+const RSI_LONG_MAX = 82;
+const RSI_SHORT_MIN = 18;
+const RSI_SHORT_MAX = 70;
+const VOL_FILTER_MULT = 0.3;
+const MAX_EXPANSION_ATR = 4.5;
+// 변동성 레짐 필터 실질 해제 (저변동도 허용)
+const ATR_REGIME_MULT = 0.4;
+// v4 — SL/TP/Trail (RR 최소 2:1 강제)
 const SL_ATR_MULT = 1.5;
-const TP_ATR_MULT = 3.0;            // RR 1:2 확보
+const TP_ATR_MULT = 3.0;            // RR 2:1 고정
+const MIN_RR = 2.0;                 // 백테스트 진입 시 RR 검증
 const TRAIL_ACTIVATE_ATR = 2.0;     // +ATR×2 수익시 트레일 발동
 // v4 — Kelly 사이징
 const KELLY_CAP = 0.10;             // 최대 자본의 10%
@@ -148,7 +149,7 @@ export async function runProfitFirstBacktest(
   onProgress('과거 데이터 수집 중...');
   const days = PERIOD_DAYS[config.period];
   const WARMUP_BARS = 220; // EMA200 웜업
-  const BAR_MS = 4 * 3600_000; // 4H봉
+  const BAR_MS = 3600_000; // 1H봉
   const end = Date.now();
   const userStart = end - days * 86400_000;
   // 사용자 기간 + 웜업 봉을 미리 받음 → 1개월 백테스트도 가능
@@ -397,13 +398,16 @@ function simulate(
 
       const side: 'LONG' | 'SHORT' = goesLong ? 'LONG' : 'SHORT';
 
-      // v4 — SL = ATR×1.5, TP = ATR×3.0
+      // v4 — SL = ATR×1.5, TP = ATR×3.0 (RR 2:1 강제)
       const rawEntry = next.open;
       const entry = side === 'LONG' ? rawEntry * (1 + SLIP) : rawEntry * (1 - SLIP);
       const slDist = a * SL_ATR_MULT;
-      const tpDist = a * TP_ATR_MULT;
+      const tpDist = Math.max(a * TP_ATR_MULT, slDist * MIN_RR);
       const sl = side === 'LONG' ? entry - slDist : entry + slDist;
       const tp1 = side === 'LONG' ? entry + tpDist : entry - tpDist;
+      // 안전장치: RR < 2 이면 진입 스킵 (거의 발생하지 않지만 보호)
+      const rr = tpDist / slDist;
+      if (rr < MIN_RR) continue;
 
       // v4 — Kelly 사이징 (롤링 통계 기반, 10% 상한)
       const kellyPct = computeKellyPct(trades);
@@ -434,7 +438,7 @@ function simulate(
     }
 
     // Equity snapshot (일봉)
-    if (i % 6 === 0 || i === endIdx - 1) {
+    if (i % 24 === 0 || i === endIdx - 1) {
       let mark = cash;
       if (position) {
         const dir = position.side === 'LONG' ? 1 : -1;
@@ -490,7 +494,7 @@ function simulate(
   const sortino = downStd > 0 ? (avgRet / downStd) * Math.sqrt(252) : 0;
 
   // CAGR
-  const yearFrac = (endIdx - startIdx) / (6 * 365); // 4H봉 기준 (하루 6봉)
+  const yearFrac = (endIdx - startIdx) / (24 * 365); // 1H봉 기준 (하루 24봉)
   const cagr = yearFrac > 0
     ? (Math.pow(finalEquity / config.initialCash, 1 / yearFrac) - 1) * 100
     : 0;
