@@ -50,9 +50,11 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Require authenticated user — prevents anonymous CMC quota drain
+  // Require a valid Supabase JWT (accepts anon publishable key or user session).
+  // Blocks unauthenticated callers while working with this app's guest-mode clients.
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -60,10 +62,9 @@ Deno.serve(async (req) => {
   const authSupabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } },
   );
-  const { data: userData, error: userErr } = await authSupabase.auth.getUser();
-  if (userErr || !userData?.user?.id) {
+  const { data: claimsData, error: claimsErr } = await authSupabase.auth.getClaims(token);
+  if (claimsErr || !claimsData?.claims) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
