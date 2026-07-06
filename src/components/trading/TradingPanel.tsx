@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Exchange, TradeParams } from "@/types/trading";
 import { Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { isDemoMode } from "@/contexts/DemoModeContext";
+import { useGlobalSafety } from "@/hooks/useGlobalSafety";
 
 interface TradingPanelProps {
   tradeParams: TradeParams;
@@ -21,10 +23,16 @@ export function TradingPanel({ tradeParams }: TradingPanelProps) {
   const [exchange, setExchange] = useState<Exchange>("binance");
   const [tpSplit, setTpSplit] = useState(50);
   const [executing, setExecuting] = useState(false);
+  const safety = useGlobalSafety();
+  const liveBlocked = isDemoMode() || safety.paperMode || safety.state !== "LIVE_READY";
 
   const params = { ...tradeParams, tpSplitRatio: tpSplit };
 
   const handleExecute = async () => {
+    if (liveBlocked) {
+      toast.error("실거래 차단됨 — Demo/Paper Mode 또는 Safety Gate 미통과 상태입니다");
+      return;
+    }
     setExecuting(true);
     try {
       const { data, error } = await supabase.functions.invoke("execute-trade", {
@@ -70,7 +78,8 @@ export function TradingPanel({ tradeParams }: TradingPanelProps) {
         size="lg"
         className="w-full"
         onClick={handleExecute}
-        disabled={executing}
+        disabled={executing || liveBlocked}
+        title={liveBlocked ? "Demo/Paper Mode 또는 Safety Gate가 열리지 않았습니다" : undefined}
       >
         {executing ? (
           <>

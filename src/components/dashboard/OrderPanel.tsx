@@ -16,6 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Zap, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Exchange } from "@/types/trading";
+import { isDemoMode } from "@/contexts/DemoModeContext";
+import { useGlobalSafety } from "@/hooks/useGlobalSafety";
 
 interface OrderPanelProps {
   exchange: Exchange;
@@ -59,8 +61,15 @@ export function OrderPanel({ exchange }: OrderPanelProps) {
     return { lossUsdt, accountPct };
   }, [entryPrice, stopLoss, orderSize, leverage, side, autoPreview]);
 
+  const safety = useGlobalSafety();
+  const liveBlocked = isDemoMode() || safety.paperMode || safety.state !== "LIVE_READY";
+
   const handleExecute = async () => {
     setConfirmOpen(false);
+    if (liveBlocked) {
+      toast.error("실거래 차단됨 — Demo/Paper Mode 또는 Safety Gate 미통과 상태입니다");
+      return;
+    }
     setExecuting(true);
     try {
       const entry = parseFloat(entryPrice);
@@ -241,7 +250,8 @@ export function OrderPanel({ exchange }: OrderPanelProps) {
         }`}
         size="lg"
         onClick={onSubmit}
-        disabled={executing}
+        disabled={executing || liveBlocked}
+        title={liveBlocked ? "Demo/Paper Mode 또는 Safety Gate가 열리지 않았습니다" : undefined}
       >
         {executing ? (
           <Loader2 className="h-5 w-5 animate-spin" />
