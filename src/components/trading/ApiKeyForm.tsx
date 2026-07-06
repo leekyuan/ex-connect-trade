@@ -1,110 +1,34 @@
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { ShieldAlert } from "lucide-react";
 import type { Exchange } from "@/types/trading";
-import { Eye, EyeOff, Check, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 
 interface ApiKeyFormProps {
   exchange: Exchange;
 }
 
+/**
+ * DEPRECATED — legacy plaintext API key form has been disabled.
+ *
+ * All exchange API keys must be saved through Settings → 거래소 연동
+ * (which uses the server-side encrypted flow and RLS-protected storage).
+ * This shell only renders a redirect notice so any lingering imports keep working.
+ */
 export function ApiKeyForm({ exchange }: ApiKeyFormProps) {
-  const [apiKey, setApiKey] = useState("");
-  const [apiSecret, setApiSecret] = useState("");
-  const [passphrase, setPassphrase] = useState("");
-  const [showSecret, setShowSecret] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  const handleSave = async () => {
-    if (!apiKey || !apiSecret) {
-      toast.error("API Key와 Secret을 모두 입력해주세요.");
-      return;
-    }
-    if (exchange === "okx" && !passphrase) {
-      toast.error("OKX는 Passphrase가 필요합니다.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("exchange_api_keys").upsert(
-        {
-          exchange,
-          api_key: apiKey,
-          api_secret: apiSecret,
-          passphrase: exchange === "okx" ? passphrase : null,
-        },
-        { onConflict: "exchange" }
-      );
-
-      if (error) throw error;
-
-      setSaved(true);
-      toast.success(`${exchange.toUpperCase()} API 키가 저장되었습니다.`);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err: any) {
-      toast.error("API 키 저장에 실패했습니다: " + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <div className="space-y-3">
-      <label className="text-sm font-medium text-muted-foreground">API 설정</label>
-      <div className="space-y-2">
-        <Input
-          type="text"
-          placeholder="API Key"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          className="bg-input border-border font-mono text-sm"
-        />
-        <div className="relative">
-          <Input
-            type={showSecret ? "text" : "password"}
-            placeholder="API Secret"
-            value={apiSecret}
-            onChange={(e) => setApiSecret(e.target.value)}
-            className="bg-input border-border font-mono text-sm pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowSecret(!showSecret)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+    <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+      <div className="flex items-start gap-2 text-xs text-amber-300">
+        <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+        <div>
+          <b>API 키 저장은 설정에서만 가능합니다.</b>
+          <div className="text-amber-200/80 mt-1">
+            {exchange.toUpperCase()} 키는 Settings 페이지의 거래소 연동 화면에서
+            서버측 암호 저장소에 저장됩니다. 이 폼에서는 저장할 수 없습니다.
+          </div>
         </div>
-        {exchange === "okx" && (
-          <Input
-            type="password"
-            placeholder="Passphrase"
-            value={passphrase}
-            onChange={(e) => setPassphrase(e.target.value)}
-            className="bg-input border-border font-mono text-sm"
-          />
-        )}
       </div>
-      <Button
-        onClick={handleSave}
-        disabled={saving}
-        variant="secondary"
-        size="sm"
-        className="w-full"
-      >
-        {saving ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : saved ? (
-          <>
-            <Check className="h-4 w-4" /> 저장됨
-          </>
-        ) : (
-          "API 키 저장"
-        )}
+      <Button asChild variant="outline" size="sm" className="w-full">
+        <Link to="/settings">Settings로 이동</Link>
       </Button>
     </div>
   );
