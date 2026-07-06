@@ -21,6 +21,7 @@ type TradeMode = 'paper' | 'live';
 export function PaperTradingPanel() {
   const { balance, positions, realizedPnl, buy, sell, reset, initialBalance } = usePaperTrading();
   const { demo } = useDemoMode();
+  const safety = useGlobalSafety();
   const [mode, setMode] = useState<TradeMode>('paper');
   const [symbol, setSymbol] = useState('BTC');
   const [qty, setQty] = useState<string>('0.01');
