@@ -61,8 +61,15 @@ export function OrderPanel({ exchange }: OrderPanelProps) {
     return { lossUsdt, accountPct };
   }, [entryPrice, stopLoss, orderSize, leverage, side, autoPreview]);
 
+  const safety = useGlobalSafety();
+  const liveBlocked = isDemoMode() || safety.paperMode || safety.state !== "LIVE_READY";
+
   const handleExecute = async () => {
     setConfirmOpen(false);
+    if (liveBlocked) {
+      toast.error("실거래 차단됨 — Demo/Paper Mode 또는 Safety Gate 미통과 상태입니다");
+      return;
+    }
     setExecuting(true);
     try {
       const entry = parseFloat(entryPrice);
