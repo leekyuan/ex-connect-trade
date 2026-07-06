@@ -250,7 +250,8 @@ export function OrderPanel({ exchange }: OrderPanelProps) {
         }`}
         size="lg"
         onClick={onSubmit}
-        disabled={executing}
+        disabled={executing || liveBlocked}
+        title={liveBlocked ? "Demo/Paper Mode 또는 Safety Gate가 열리지 않았습니다" : undefined}
       >
         {executing ? (
           <Loader2 className="h-5 w-5 animate-spin" />
