@@ -12,6 +12,7 @@ import {
 } from '@/utils/exchangeApi';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 import { DemoBadge } from '@/components/common/DemoBadge';
+import { useGlobalSafety } from '@/hooks/useGlobalSafety';
 
 const COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'MATIC'];
 
