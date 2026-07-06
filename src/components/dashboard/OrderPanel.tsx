@@ -16,6 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Zap, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Exchange } from "@/types/trading";
+import { isDemoMode } from "@/contexts/DemoModeContext";
+import { useGlobalSafety } from "@/hooks/useGlobalSafety";
 
 interface OrderPanelProps {
   exchange: Exchange;
