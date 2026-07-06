@@ -81,6 +81,9 @@ export function PaperTradingPanel() {
   // ── LIVE order ──
   const liveOrder = async (side: 'BUY' | 'SELL') => {
     if (demo) return toast.error('🚫 데모 모드에서는 실주문 차단됨 — 모의매매 탭을 사용하세요');
+    if (safety.paperMode || safety.state !== 'LIVE_READY') {
+      return toast.error(`🚫 Safety Gate 미통과 (${safety.state}) — 실주문 차단됨`);
+    }
     if (!liveReady) return toast.error('API 키 미설정');
     if (qtyNum <= 0) return toast.error('수량을 확인하세요');
     setBusy(true);
