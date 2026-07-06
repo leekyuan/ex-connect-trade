@@ -78,7 +78,8 @@ export function TradingPanel({ tradeParams }: TradingPanelProps) {
         size="lg"
         className="w-full"
         onClick={handleExecute}
-        disabled={executing}
+        disabled={executing || liveBlocked}
+        title={liveBlocked ? "Demo/Paper Mode 또는 Safety Gate가 열리지 않았습니다" : undefined}
       >
         {executing ? (
           <>
