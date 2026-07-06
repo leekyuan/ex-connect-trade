@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Exchange, TradeParams } from "@/types/trading";
 import { Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { isDemoMode } from "@/contexts/DemoModeContext";
+import { useGlobalSafety } from "@/hooks/useGlobalSafety";
 
 interface TradingPanelProps {
   tradeParams: TradeParams;
