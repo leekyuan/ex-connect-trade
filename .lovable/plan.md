@@ -1,96 +1,86 @@
-## 목표
-"첫 10초 안에 롱/숏/관망을 판단할 수 있는" 전문 트레이딩 터미널로 재편. 잡다한 기능은 하위로 숨기고, BTC/ETH 선물 신호 + 전략 검증 + API 보안 3축에 집중.
+# 실거래 안전 잠금 & Secret 저장 하드닝 계획
 
-## 새 정보 구조 (IA)
+목표: 앱을 "데모/검증 모드"로 완전히 잠그고, 실거래 경로는 서버 안전장치 뒤에서만 열리도록 재정비합니다. 프론트 신뢰를 제거하고 Edge Function이 최종 판정자가 됩니다.
 
-```
-/                    Today Signal Dashboard  (홈 = 신호 카드 중심)
-/verification        Strategy Verification Dashboard
-/security            Risk & API Safety
-/portfolio           (기존, 사이드바)
-/journal             (기존, 사이드바)
-/screener            (Advanced 하위로 이동)
-/analysis            (Advanced 하위)
-/backtest            (Advanced 하위, /verification 으로 진입 유도)
-/legal/terms         이용약관
-/legal/privacy       개인정보처리방침
-/legal/risk          투자 유의사항
-/legal/api-policy    API 보안 정책
-/legal/refund        환불 정책
-```
+---
 
-## 1. 홈 — Today Signal Dashboard (`src/pages/Index.tsx` 교체)
+## 1. 서버측 실거래 마스터 스위치
 
-상단 디스클레이머 바: "수익을 보장하지 않습니다 · 매매 의사결정 보조 도구"
+**공용 가드 모듈 강화** — `supabase/functions/_shared/riskGuard.ts`
+- `assertLiveTradingEnabled()`: `Deno.env.get('LIVE_TRADING_ENABLED') === 'true'`가 아니면 즉시 403 반환 (기본값 false).
+- `assertOrderAllowed({ user, symbol, leverage, notional, sl, method })`:
+  - allowed symbol 화이트리스트 (BTCUSDT/ETHUSDT 등)
+  - `leverage <= MAX_LEVERAGE` (기본 5)
+  - `notional <= MAX_POSITION_USDT`
+  - `sl` 필수
+  - MARKET 주문은 `LIVE_TRADING_ENABLED=true`인 상태에서만 허용
+  - idempotencyKey 중복 차단 (`trade_logs.idempotency_key` unique)
+  - `trade_logs`에 요청/결과 기록
 
-핵심: `<TodaySignalCard symbol="BTCUSDT" />`, `<TodaySignalCard symbol="ETHUSDT" />` 2장이 첫 화면을 점유. 모바일에서는 세로 스택.
+**적용 대상 Edge Functions**
+- `execute-trade/index.ts` — 모든 주문 전 `assertLiveTradingEnabled` + `assertOrderAllowed`. TP/SL 등록 실패 시 entry 취소 후 실패 반환.
+- `binance-proxy/index.ts` — `POST`/`DELETE`/`PUT` 및 `/leverage`, `/order` 경로는 `assertLiveTradingEnabled` 통과 시에만. `GET` 조회는 유지.
+- `auto-trade/index.ts` — 이름 유지하되 실주문 호출 제거. 시그널만 리턴하고 상단에 "PAPER SIGNAL ONLY" 헤더. Strategy eligibility (PF/OOS/AvgR/Rolling30/MaxDD) 미통과 시 `state: BLOCKED` 반환.
 
-각 카드:
-- 상태 배지: `LONG READY` / `SHORT READY` / `WAIT` / `NO TRADE` (초록/빨강/노랑/회색)
-- EP1, EP2 / TP1, TP2, TP3 / SL 가격 표
-- R:R, TP1 확률, 최근 100회 PF, 최근 30회 PF
-- 진입 금지 사유 (있을 때): "Rolling30 PF 0.94 — 기준 미달"
-- CTA: "전략 검증 보기" → `/verification?symbol=BTCUSDT`
+---
 
-데이터: 기존 `useMarketAnalysis` + `unifiedSignal` + `unifiedBacktest` 재사용. 기준 미달이면 자동 `WAIT/NO TRADE`.
+## 2. exchange_api_keys 구조 개선
 
-## 2. Strategy Verification Dashboard (`src/pages/VerificationPage.tsx` 신규)
+**마이그레이션**
+- 새 컬럼 `api_secret_encrypted bytea`, `passphrase_encrypted bytea` 추가.
+- RLS 정책 재작성: `SELECT`는 `id, exchange, api_key(마지막 4자), created_at, updated_at`만 노출하는 뷰 `exchange_api_keys_public`로 분리. 원본 테이블은 `SELECT`를 authenticated에서 회수하고, Edge Function(service_role)만 접근.
+- GRANT 재정비: `authenticated`에는 `INSERT, UPDATE, DELETE`만. 조회는 뷰로.
+- 서버측 대칭 암호화: `EXCHANGE_KEY_ENCRYPTION_SECRET`(32자) 사용 → `crypto.subtle` AES-GCM. Edge Function `save-exchange-key`, `delete-exchange-key`를 신설하여 저장/삭제를 서버에서 수행. 프론트는 이 함수를 통해서만 저장.
 
-기존 `SignalBacktestCard` + `unifiedBacktest` 확장. 표시 지표:
-PF · Win Rate · Trades · MaxDD · Avg R · TP1 Hit · Long PF / Short PF · OOS PF · Rolling30 PF · 수수료/슬리피지 적용 여부 · Top1~3 winner 제거 후 PF.
+**프론트**
+- `ApiKeyForm.tsx`의 `supabase.from("exchange_api_keys").upsert(...)` 제거. 대신 `supabase.functions.invoke("save-exchange-key", { body: { exchange, apiKey, apiSecret, passphrase } })` 호출.
+- 저장 후 Secret은 상태에서 즉시 폐기, 재조회 불가.
+- 모든 저장 진입점을 `ApiSafetyModal` / `ExchangeSettings` 두 곳으로 통일하고 `BinanceApiSettings`도 동일 함수 사용.
 
-기준 통과 시 `검증 통과` 배지, 미달 시 `실거래 비추천 · 모의검증 필요` 배지. 기준은 사용자 문서 그대로 코드 상수화.
+---
 
-## 3. Risk & API Safety (`src/pages/SecurityPage.tsx` 신규 + ConnectApiModal 강화)
+## 3. 프론트 Safety Gate 통합
 
-- API Key 입력 모달 진입 시 보안 안내 단계(체크박스 3개 필수):
-  - "출금 권한 비활성화 확인"
-  - "거래 권한만 허용"
-  - "IP Whitelist 설정 권장"
-- Secret 저장 후 마스킹, 재표시 불가
-- Paper Mode 기본 ON 토글, 실거래 전환 시 2단계 확인
-- 리스크 한도 UI: 1회 손실 한도, 일일 손실 한도, 연속 손실 정지 N회, 최대 레버리지 슬라이더 (기존 `trading_rules` 테이블 사용)
+- `useGlobalSafety`에 서버 상태 훅 `useServerSafety()` 추가: `functions.invoke("safety-status")` — LIVE_TRADING_ENABLED, hasApiKey, strategyEligible, limits를 서버에서 조회.
+- `TradingPanel.tsx`, `OrderPanel.tsx`, `PaperTradingPanel.tsx`:
+  - `safety.state !== 'LIVE_READY'` 또는 `demo` 또는 `paperMode`이면 실거래 버튼 `disabled`.
+  - Paper/Demo에서는 `execute-trade` / `binance-proxy(POST)` 호출 자체를 클라이언트에서도 차단(2차 방어).
+  - 실행 시 `idempotencyKey`(uuid) 필수 첨부.
 
-## 4. 컴포넌트 신규/수정
+---
 
-신규:
-- `src/components/today/TodaySignalCard.tsx`
-- `src/components/today/DisclaimerBar.tsx`
-- `src/components/verification/VerificationCard.tsx` (기준 통과/미달 배지 포함)
-- `src/components/security/ApiSafetyModal.tsx` (3단계 체크 + 키 입력)
-- `src/components/security/RiskLimitsForm.tsx`
-- `src/pages/VerificationPage.tsx`, `src/pages/SecurityPage.tsx`
-- `src/pages/legal/{Terms,Privacy,RiskDisclosure,ApiPolicy,Refund}.tsx`
+## 4. auto-trade 분리
 
-수정:
-- `src/pages/Index.tsx` → Today Signal Dashboard
-- `src/components/layout/AppSidebar.tsx` → 신규 IA, Advanced 그룹으로 screener/analysis/backtest 이동
-- `src/components/layout/MobileTabBar.tsx` → Today / Verify / Security / More
-- `src/App.tsx` → 신규 라우트
-- `src/components/dashboard/ConnectApiModal.tsx` → `ApiSafetyModal` 사용
+- `auto-trade/index.ts`는 신호 생성 + strategy verdict 반환만 수행.
+- 실주문 호출 코드 제거, 응답에 `paperOnly: true` 명시.
+- 검증 미통과 시 `{ state: 'BLOCKED', reasons: [...] }`.
 
-## 5. 카피 정비
-전 코드베이스에서 다음 표현 검색 후 치환:
-- "자동 수익", "고승률 보장", "돈 버는 AI" → 제거
-- 표준 문구: "AI 기반 매매 의사결정 보조", "백테스트 기반 신호 검증", "실거래 전 모의검증 필수", "수익을 보장하지 않습니다"
-- 메인 CTA: "전략 검증 보기" 우선, 보조 CTA "오늘 신호 보기"
+---
 
-## 6. 디자인 토큰
-- 다크 배경 유지, 신호색은 `--signal-long`(green) / `--signal-short`(red) / `--signal-wait`(amber) / `--signal-none`(muted) 4종만 사용
-- 큰 마케팅 문구 제거, 숫자 우선 (tabular-nums)
+## 5. Reviewer/Demo 모드
 
-## 작업 순서
-1. 디자인 토큰(신호색) 추가 → `index.css`, `tailwind.config.ts`
-2. `TodaySignalCard` + `DisclaimerBar` + 새 `Index.tsx`
-3. `VerificationPage` + `VerificationCard` + 기준 상수
-4. `ApiSafetyModal` + `RiskLimitsForm` + `SecurityPage`
-5. Legal 5개 페이지 (정적)
-6. 사이드바/모바일탭/라우트 정비
-7. 카피 sweep
+- `DemoModeContext`가 ON이면 모든 실거래 관련 함수 호출 앞단에서 조기 반환하고 sample fixture 사용.
+- `.env.local`은 이미 gitignore. `.gitignore` 확인만.
 
-## 범위 밖 (이번 작업 안 함)
-- 신규 백테스트 엔진 (기존 `unifiedBacktest` 재사용, 지표만 노출)
-- 결제 연동
-- 알림/텔레그램 변경
+---
 
-작업 후 변경 파일 목록과 핵심 변경점을 요약합니다.
+## 6. 필요한 시크릿
+
+- `LIVE_TRADING_ENABLED` = `false` (기본)
+- `EXCHANGE_KEY_ENCRYPTION_SECRET` = 32+자 랜덤 (generate_secret)
+- `ALLOWED_SYMBOLS` = `BTCUSDT,ETHUSDT`
+- `MAX_LEVERAGE` = `5`, `MAX_POSITION_USDT` = `500`, `MAX_DAILY_LOSS_USDT` = `50`, `MAX_PER_TRADE_LOSS_USDT` = `20`
+
+---
+
+## 산출물 요약 (완료 시)
+
+- 변경 파일 리스트
+- 서버 가드 흐름 도식 (텍스트)
+- 남은 수동 조치 (LIVE_TRADING_ENABLED 켜는 절차, 화이트리스트 튜닝)
+
+---
+
+## 확인 필요
+
+이 계획대로 진행할까요? 특히 **(a) `exchange_api_keys` 테이블 마이그레이션(뷰 분리 + SELECT 권한 회수)** 과 **(b) 신규 Edge Function `save-exchange-key`/`safety-status`/`delete-exchange-key` 생성**은 되돌리기 번거로우니 승인 후 진행하겠습니다.
