@@ -233,11 +233,23 @@ export function PaperTradingPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button onClick={onBuy} disabled={busy} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-          <ArrowUpRight className="h-4 w-4 mr-1" /> {mode === 'live' ? '롱 진입 (실거래)' : '매수'}
+        <Button
+          onClick={onBuy}
+          disabled={busy || (mode === 'live' && liveLocked)}
+          title={mode === 'live' && liveLocked ? '실거래 잠김 — 관리자 승인 후 활성화됩니다' : undefined}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+        >
+          {mode === 'live' && liveLocked ? <Lock className="h-4 w-4 mr-1" /> : <ArrowUpRight className="h-4 w-4 mr-1" />}
+          {mode === 'live' ? (liveLocked ? '실거래 잠김' : '롱 진입 (실거래)') : '매수'}
         </Button>
-        <Button onClick={onSell} disabled={busy} className="bg-red-600 hover:bg-red-700 text-white">
-          <ArrowDownRight className="h-4 w-4 mr-1" /> {mode === 'live' ? '숏 진입 (실거래)' : '매도'}
+        <Button
+          onClick={onSell}
+          disabled={busy || (mode === 'live' && liveLocked)}
+          title={mode === 'live' && liveLocked ? '실거래 잠김 — 관리자 승인 후 활성화됩니다' : undefined}
+          className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+        >
+          {mode === 'live' && liveLocked ? <Lock className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
+          {mode === 'live' ? (liveLocked ? '실거래 잠김' : '숏 진입 (실거래)') : '매도'}
         </Button>
       </div>
 
