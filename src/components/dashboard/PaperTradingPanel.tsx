@@ -33,6 +33,7 @@ export function PaperTradingPanel() {
 
   const creds = loadCreds();
   const liveReady = !!creds;
+  const liveLocked = safety.paperMode || safety.state !== 'LIVE_READY' || demo;
 
   // Live prices polling
   useEffect(() => {
