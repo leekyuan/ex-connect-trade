@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, Shield, KeyRound } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, Shield, KeyRound, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -33,6 +33,7 @@ export function PaperTradingPanel() {
 
   const creds = loadCreds();
   const liveReady = !!creds;
+  const liveLocked = safety.paperMode || safety.state !== 'LIVE_READY' || demo;
 
   // Live prices polling
   useEffect(() => {
@@ -151,10 +152,23 @@ export function PaperTradingPanel() {
         >🔴 실거래 {liveReady ? '(연결됨)' : ''}</button>
       </div>
 
-      {mode === 'live' && !liveReady && (
-        <div className="text-[11px] text-amber-400 bg-amber-500/10 rounded-md p-2 flex items-center gap-2">
-          <KeyRound className="h-3.5 w-3.5" />
-          API 키가 없습니다 — <Link to="/settings" className="underline font-semibold">설정 &gt; API 연결</Link>
+      {mode === 'live' && (
+        <div className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/40 rounded-md p-2 flex items-start gap-2">
+          <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <div className="font-semibold">실거래 잠김 — 현재는 Paper Mode만 사용 가능합니다</div>
+            <div className="text-red-200/80">
+              실거래는 관리자 승인 및 서버 안전 심사 후 활성화됩니다.
+              LIVE_TRADING_ENABLED=false 상태에서는 실제 주문이 전송되지 않습니다.
+              API 키 저장은 테스트/연결 확인 용도이며, 실거래 실행은 서버에서 차단되어 있습니다.
+            </div>
+            {!liveReady && (
+              <div className="text-amber-300 flex items-center gap-1 pt-1">
+                <KeyRound className="h-3 w-3" />
+                API 키 없음 — <Link to="/settings" className="underline font-semibold">설정 &gt; API 연결</Link>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -219,11 +233,23 @@ export function PaperTradingPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button onClick={onBuy} disabled={busy} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-          <ArrowUpRight className="h-4 w-4 mr-1" /> {mode === 'live' ? '롱 진입 (실거래)' : '매수'}
+        <Button
+          onClick={onBuy}
+          disabled={busy || (mode === 'live' && liveLocked)}
+          title={mode === 'live' && liveLocked ? '실거래 잠김 — 관리자 승인 후 활성화됩니다' : undefined}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+        >
+          {mode === 'live' && liveLocked ? <Lock className="h-4 w-4 mr-1" /> : <ArrowUpRight className="h-4 w-4 mr-1" />}
+          {mode === 'live' ? (liveLocked ? '실거래 잠김' : '롱 진입 (실거래)') : '매수'}
         </Button>
-        <Button onClick={onSell} disabled={busy} className="bg-red-600 hover:bg-red-700 text-white">
-          <ArrowDownRight className="h-4 w-4 mr-1" /> {mode === 'live' ? '숏 진입 (실거래)' : '매도'}
+        <Button
+          onClick={onSell}
+          disabled={busy || (mode === 'live' && liveLocked)}
+          title={mode === 'live' && liveLocked ? '실거래 잠김 — 관리자 승인 후 활성화됩니다' : undefined}
+          className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+        >
+          {mode === 'live' && liveLocked ? <Lock className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
+          {mode === 'live' ? (liveLocked ? '실거래 잠김' : '숏 진입 (실거래)') : '매도'}
         </Button>
       </div>
 

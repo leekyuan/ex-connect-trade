@@ -4,6 +4,17 @@ This project may involve crypto trading, crypto signals, or future automated tra
 
 Real funds can be lost. Safety rules must be preserved.
 
+## Current Operating Baseline (2026-07-07)
+
+- Active backend: **Lovable Cloud** (managed Supabase). External Supabase transition is **cancelled**.
+- `hoylvkjlkkvwiqvxuajx` = standby/backup only, NOT the running backend.
+- `hquupjdbfughvvffqctv` = legacy, unused.
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PROJECT_ID` are auto-managed by Lovable Cloud — do NOT edit `.env` / `.env.local` / `.env.example` manually.
+- Never commit real API keys or `service_role` key. `service_role` MUST NOT appear in frontend code.
+- `LIVE_TRADING_ENABLED` is unset (= default `false`). Server-side guard hard-blocks all live orders.
+- Live trading remains OFF and must NOT be enabled without explicit admin approval and completed server safety review.
+
+
 ## Mandatory Rules
 
 - Live trading must be disabled by default.

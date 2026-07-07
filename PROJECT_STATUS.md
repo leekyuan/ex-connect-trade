@@ -127,3 +127,43 @@ Run against the preview URL. Do NOT enable `LIVE_TRADING_ENABLED`. Do NOT enter 
 - Add automated tests for live-trading safety gates.
 - Re-run security scan after next migration.
 
+
+## Operating Baseline — Confirmed 2026-07-07
+
+- Active backend = **Lovable Cloud** (managed Supabase). External Supabase migration is **cancelled**.
+- `hoylvkjlkkvwiqvxuajx` remains a standby/backup candidate only — NOT the running backend.
+- `hquupjdbfughvvffqctv` is legacy, unused.
+- `LIVE_TRADING_ENABLED` is unset (server treats as `false`); live orders are hard-blocked by `_shared/riskGuard.ts`.
+- `.env`, `.env.local`, `.env.example` must not contain real keys. Lovable Cloud manages `VITE_SUPABASE_*` automatically.
+- `service_role` key is server-only; never exposed to frontend code.
+- UI: Live-trade buttons are disabled with visible "실거래 잠김" lock notice until admin approval and safety review.
+
+## Roadmap (not implemented yet — checklists only)
+
+### Phase 3 — Paper Verification (before enabling any real trading)
+
+- [ ] Accumulate 30–100 paper trades per symbol (BTC, ETH separately).
+- [ ] Track per symbol: Win rate, Profit Factor (PF), Max Drawdown (MDD), Avg R, Max consecutive losses, OOS PF (out-of-sample), TP1 hit rate, Rolling 30-trade PF.
+- [ ] Define Paper-Mode pass criteria (e.g. PF ≥ 1.4, MDD ≤ 15%, Avg R ≥ 0.5R, OOS PF ≥ 1.2, consec loss ≤ 4).
+- [ ] Reject strategy if any single metric fails; require a full new 30-trade sample after tuning.
+
+### Phase 4 — Pre-Live Security Hardening
+
+- [ ] Server-side encryption of `api_secret` / `passphrase` at rest (`EXCHANGE_KEY_ENCRYPTION_SECRET`).
+- [ ] Reject any API key that has withdraw permission (verified via exchange `/account` call).
+- [ ] Recommend user set IP whitelist on the exchange side.
+- [ ] Re-verify account state (balance / position / open orders) immediately before each order.
+- [ ] Manual kill-switch button + server flag to freeze all order routes.
+- [ ] Enforced daily loss stop, max exposure, per-trade loss cap in `riskGuard.ts`.
+- [ ] Order failure / partial fill / SL-place failure → automatic entry-order rollback (already implemented in `execute-trade`; extend to all routes).
+- [ ] Idempotency-key required on every mutating exchange call.
+
+### Phase 5 — Small-Size Live Pilot (LAST step; DO NOT execute yet)
+
+- [ ] Set `LIVE_TRADING_ENABLED=true` only after Phases 3 + 4 are signed off.
+- [ ] Allowed symbols: BTCUSDT, ETHUSDT only.
+- [ ] Leverage: 1x–2x only.
+- [ ] Position size: USD 10–20.
+- [ ] Manual-approval-per-order flow (no fully autonomous auto-trading).
+- [ ] Monitor ≥ 7 days; only then consider scaling size or loosening constraints.
+- [ ] Any anomaly → immediate kill-switch + rollback to Paper Mode.

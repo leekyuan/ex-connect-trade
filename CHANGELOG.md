@@ -4,6 +4,15 @@ All important project changes should be recorded here.
 
 ## [Unreleased]
 
+### Safety Baseline Reaffirmed (2026-07-07)
+
+- Active backend remains **Lovable Cloud**. External Supabase transition (`hoylvkjlkkvwiqvxuajx`) is **cancelled** — kept as standby/backup only. Legacy `hquupjdbfughvvffqctv` is unused.
+- `LIVE_TRADING_ENABLED` stays unset (server default `false`); `_shared/riskGuard.ts` continues to hard-block all live orders, leverage changes, and unprotected MARKET orders.
+- `PaperTradingPanel`: Live tab now shows a persistent red "실거래 잠김" lock notice explaining that live trading requires admin approval and server safety review; Long/Short buttons are visibly locked and disabled while `LIVE_TRADING_ENABLED=false` or Safety Gate ≠ `LIVE_READY`.
+- Existing UI Safety Gates in `TradingPanel`, `OrderPanel`, `PaperTradingPanel` preserved. Server risk-guard, `execute-trade`, and `binance-proxy` protections left untouched.
+- Roadmap (Paper verification, pre-live hardening, small-size pilot) documented in `PROJECT_STATUS.md` — NOT implemented yet.
+
+
 ### Security Hardening (2026-07-06)
 
 - **`exchange_api_keys` 컬럼 권한 강화 (migration)**: `authenticated` 역할의 테이블-와이드 `SELECT` 권한을 회수하고, `api_secret` / `passphrase`를 제외한 컬럼(`id, user_id, exchange, api_key, created_at, updated_at`)만 컬럼 레벨 SELECT를 재부여. 프론트엔드에서는 Secret/Passphrase가 절대 조회되지 않으며, 서명은 `service_role`을 사용하는 Edge Function(`execute-trade`, `binance-proxy`)에서만 수행됩니다.
