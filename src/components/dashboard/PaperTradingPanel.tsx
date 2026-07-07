@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, Shield, KeyRound } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, Shield, KeyRound, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
