@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Waves, BarChart3, CandlestickChart, Maximize2, Minimize2 } from 'lucide-react';
+import { Loader2, Waves, CandlestickChart, Maximize2, Minimize2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useCoinMarketCap } from '@/hooks/useCoinMarketCap';
 import { useBinanceSymbols } from '@/hooks/useBinanceSymbols';
 import { UnifiedSignalPanel } from '@/components/MarketAnalysis/UnifiedSignalPanel';
-import SmartTradingViewChart from '@/components/chart/SmartTradingViewChart';
+
 import { CustomLightweightChart } from '@/components/MarketAnalysis/CustomLightweightChart';
 import { NeoWaveChart } from '@/components/MarketAnalysis/NeoWaveChart';
 import { NeoWaveScenarioPanel } from '@/components/MarketAnalysis/NeoWaveScenarioPanel';
@@ -32,7 +32,7 @@ import { analyzeWyckoff } from '@/utils/theories/wyckoff';
 import type { NeoWaveScenario } from '@/utils/theories/neely';
 
 const FALLBACK_COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'DOT', 'TRX', 'TON'];
-type ChartView = 'neowave' | 'tv' | 'custom';
+type ChartView = 'neowave' | 'custom';
 
 export default function MarketAnalysisPage() {
   const [params, setParams] = useSearchParams();
@@ -297,17 +297,6 @@ export default function MarketAnalysisPage() {
             <Waves className="h-3.5 w-3.5" /> Signal Chart · 실전 타점
           </button>
           <button
-            onClick={() => setChartView('tv')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
-              chartView === 'tv'
-                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                : 'bg-muted text-muted-foreground hover:bg-muted/70'
-            }`}
-            title="고급 사용자용 — 지표를 자유롭게 추가"
-          >
-            <BarChart3 className="h-3.5 w-3.5" /> TradingView Advanced
-          </button>
-          <button
             onClick={() => setChartView('custom')}
             className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${
               chartView === 'custom'
@@ -369,15 +358,6 @@ export default function MarketAnalysisPage() {
                   height={chartHeight}
                 />
               )
-            ) : chartView === 'tv' ? (
-              <div className="overflow-hidden" style={{ minHeight: chartHeight }}>
-                <SmartTradingViewChart
-                  baseSymbol={symbol}
-                  interval={activeTf.tv}
-                  isFutures
-                  height={chartHeight + 40}
-                />
-              </div>
             ) : (
               <CustomLightweightChart
                 symbol={symbol}
