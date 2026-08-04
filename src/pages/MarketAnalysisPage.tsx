@@ -319,43 +319,74 @@ export default function MarketAnalysisPage() {
             <CandlestickChart className="h-3.5 w-3.5" /> Indicator Lab
           </button>
           {chartView === 'neowave' && neo.live && (
-            <span className="ml-auto text-[10px] text-emerald-400 flex items-center gap-1">
+            <span className="text-[10px] text-emerald-400 flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               실시간 분석 중 · {activeTf.label}
             </span>
           )}
+
+          {/* 차트 크기 조절 */}
+          <div className="ml-auto flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground mr-1">차트 크기</span>
+            {CHART_SIZES.map(s => (
+              <button
+                key={s.key}
+                onClick={() => setChartSizeKey(s.key)}
+                className={`text-[10px] px-2 py-1 rounded border transition ${
+                  chartSizeKey === s.key
+                    ? 'bg-primary/20 text-primary border-primary/40 font-bold'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+            <button
+              onClick={() => setWideChart(v => !v)}
+              className={`ml-1 text-[10px] px-2 py-1 rounded border flex items-center gap-1 transition ${
+                wideChart
+                  ? 'bg-primary/20 text-primary border-primary/40 font-bold'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+              }`}
+              title="사이드 패널을 숨기고 차트를 전체 폭으로 확장"
+            >
+              {wideChart ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+              {wideChart ? '분할 보기' : '넓게 보기'}
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
+        <div className={`grid grid-cols-1 gap-4 ${wideChart ? '' : 'lg:grid-cols-[1fr_400px]'}`}>
           <div>
             {chartView === 'neowave' ? (
               neo.loading ? (
-                <Skeleton className="h-[640px] w-full rounded-xl" />
+                <Skeleton className="w-full rounded-xl" style={{ height: chartHeight }} />
               ) : (
                 <NeoWaveChart
                   candles={neo.candles}
                   result={neo.result}
                   highlightedScenario={scenarioId}
-                  height={640}
+                  height={chartHeight}
                 />
               )
             ) : chartView === 'tv' ? (
-              <div className="overflow-hidden min-h-[640px]">
+              <div className="overflow-hidden" style={{ minHeight: chartHeight }}>
                 <SmartTradingViewChart
                   baseSymbol={symbol}
                   interval={activeTf.tv}
                   isFutures
-                  height={680}
+                  height={chartHeight + 40}
                 />
               </div>
             ) : (
               <CustomLightweightChart
                 symbol={symbol}
                 interval={activeTf.binance}
-                height={640}
+                height={chartHeight}
               />
             )}
           </div>
+
 
           <div className="space-y-4">
             {/* 1) Current Safety Status — 우측 패널 최상단 */}
