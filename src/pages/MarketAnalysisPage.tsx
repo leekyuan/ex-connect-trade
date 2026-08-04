@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Waves, BarChart3, CandlestickChart } from 'lucide-react';
+import { Loader2, Waves, BarChart3, CandlestickChart, Maximize2, Minimize2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useCoinMarketCap } from '@/hooks/useCoinMarketCap';
 import { useBinanceSymbols } from '@/hooks/useBinanceSymbols';
