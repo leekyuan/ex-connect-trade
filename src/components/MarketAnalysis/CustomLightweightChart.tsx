@@ -400,7 +400,7 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
       });
       subSeries.current.push(kS, dS);
     }
-  }, [candles, showRsi, showMacd, showStoch]);
+  }, [candles, showRsi, showMacd, showStoch, chartEpoch]);
 
   const groups = useMemo(() => ([
     { title: '이동평균', keys: ['ema5', 'ema10', 'ema20', 'ema50', 'ema200'] as Array<keyof Toggles> },
