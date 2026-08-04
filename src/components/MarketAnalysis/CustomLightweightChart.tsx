@@ -209,7 +209,7 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
       color: c.close >= c.open ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)',
     })));
     mainChart.current?.timeScale().fitContent();
-  }, [candles]);
+  }, [candles, chartEpoch]);
 
   // ── 오버레이 (EMA/BB/Supertrend/Fractal/Pivot/FVG/OB/Fib) ──
   useEffect(() => {
