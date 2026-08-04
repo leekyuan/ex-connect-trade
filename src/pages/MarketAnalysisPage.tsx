@@ -69,6 +69,21 @@ export default function MarketAnalysisPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartView, setChartView] = useState<ChartView>('neowave');
+  // 차트 크기 조절 (보통 / 크게 / 최대) — 값은 px 높이
+  const CHART_SIZES = [
+    { key: 'md', label: '보통', h: 560 },
+    { key: 'lg', label: '크게', h: 780 },
+    { key: 'xl', label: '최대', h: 1000 },
+  ] as const;
+  const [chartSizeKey, setChartSizeKey] = useState<'md' | 'lg' | 'xl'>(() => {
+    try { return (localStorage.getItem('cryptoedge-chart-size') as 'md' | 'lg' | 'xl') || 'md'; }
+    catch { return 'md'; }
+  });
+  const [wideChart, setWideChart] = useState(false);
+  const chartHeight = CHART_SIZES.find(s => s.key === chartSizeKey)?.h ?? 560;
+  useEffect(() => {
+    try { localStorage.setItem('cryptoedge-chart-size', chartSizeKey); } catch { /* ignore */ }
+  }, [chartSizeKey]);
   const [scenarioId, setScenarioId] = useState<NeoWaveScenario['id']>('base');
 
   // 실시간 Neo-Wave 분석 (활성 봉 기준)
