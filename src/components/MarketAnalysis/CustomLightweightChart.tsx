@@ -100,6 +100,9 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
   const [candles, setCandles] = useState<Candle[]>([]);
   const [meta, setMeta] = useState<{ exchange: string; fallback: boolean } | null>(null);
   const [toggles, setToggles] = useState<Toggles>(() => loadToggles());
+  /** 차트가 재생성될 때마다 증가 — 데이터/오버레이 이펙트를 다시 실행시켜 캔들이 사라지는 버그 방지 */
+  const [chartEpoch, setChartEpoch] = useState(0);
+
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(toggles)); } catch { /* ignore */ }
