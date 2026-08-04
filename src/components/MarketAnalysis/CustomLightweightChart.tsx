@@ -100,6 +100,9 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
   const [candles, setCandles] = useState<Candle[]>([]);
   const [meta, setMeta] = useState<{ exchange: string; fallback: boolean } | null>(null);
   const [toggles, setToggles] = useState<Toggles>(() => loadToggles());
+  /** 차트가 재생성될 때마다 증가 — 데이터/오버레이 이펙트를 다시 실행시켜 캔들이 사라지는 버그 방지 */
+  const [chartEpoch, setChartEpoch] = useState(0);
+
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(toggles)); } catch { /* ignore */ }
@@ -156,6 +159,8 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
       });
     };
     charts.forEach(syncFrom);
+    setChartEpoch(e => e + 1);
+
 
     const ro = new ResizeObserver(() => {
       if (mainRef.current && mainChart.current) {
@@ -204,7 +209,7 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
       color: c.close >= c.open ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)',
     })));
     mainChart.current?.timeScale().fitContent();
-  }, [candles]);
+  }, [candles, chartEpoch]);
 
   // ── 오버레이 (EMA/BB/Supertrend/Fractal/Pivot/FVG/OB/Fib) ──
   useEffect(() => {
@@ -340,7 +345,7 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
         }));
       });
     }
-  }, [candles, toggles]);
+  }, [candles, toggles, chartEpoch]);
 
   // ── 서브 패널 (RSI / MACD / Stoch) ──
   useEffect(() => {
@@ -395,7 +400,7 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
       });
       subSeries.current.push(kS, dS);
     }
-  }, [candles, showRsi, showMacd, showStoch]);
+  }, [candles, showRsi, showMacd, showStoch, chartEpoch]);
 
   const groups = useMemo(() => ([
     { title: '이동평균', keys: ['ema5', 'ema10', 'ema20', 'ema50', 'ema200'] as Array<keyof Toggles> },
