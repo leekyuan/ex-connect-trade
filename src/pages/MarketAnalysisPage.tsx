@@ -345,8 +345,8 @@ export default function MarketAnalysisPage() {
           </div>
         </div>
 
-        <div className={`grid grid-cols-1 gap-4 ${wideChart ? '' : 'lg:grid-cols-[1fr_400px]'}`}>
-          <div>
+        <div className={`grid grid-cols-1 gap-4 items-start ${wideChart ? '' : 'lg:grid-cols-[1fr_400px]'}`}>
+          <div className="space-y-4 min-w-0">
             {chartView === 'neowave' ? (
               neo.loading ? (
                 <Skeleton className="w-full rounded-xl" style={{ height: chartHeight }} />
@@ -365,7 +365,22 @@ export default function MarketAnalysisPage() {
                 height={chartHeight}
               />
             )}
+
+            {/* ── 뉴스/SNS 호재악재 카드 ── */}
+            <NewsCatalystCard symbol={symbol} />
+
+            {/* ── 파생상품 실시간 패널 (펀비/OI/L-S/CVD/RSI/청산) ── */}
+            <ProMarketPanel symbol={symbol} />
+
+            {/* AI 코치 — 시장분석 컨텍스트 주입 */}
+            <AITradingAssistant
+              embedded
+              context={aiContext}
+              subtitle={`${symbol} 분석 컨텍스트 자동 주입 · Lovable AI`}
+            />
           </div>
+
+
 
 
           <div className="space-y-4">
