@@ -159,6 +159,8 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
       });
     };
     charts.forEach(syncFrom);
+    setChartEpoch(e => e + 1);
+
 
     const ro = new ResizeObserver(() => {
       if (mainRef.current && mainChart.current) {
