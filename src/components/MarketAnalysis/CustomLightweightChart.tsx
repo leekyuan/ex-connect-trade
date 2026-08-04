@@ -345,7 +345,7 @@ export function CustomLightweightChart({ symbol, interval, height = 560 }: Props
         }));
       });
     }
-  }, [candles, toggles]);
+  }, [candles, toggles, chartEpoch]);
 
   // ── 서브 패널 (RSI / MACD / Stoch) ──
   useEffect(() => {
