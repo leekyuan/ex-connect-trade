@@ -19,21 +19,19 @@ serve(async (req) => {
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  if (!token) {
+  const projectRef = (Deno.env.get('SUPABASE_URL') ?? '').replace('https://', '').split('.')[0];
+  function tokenLooksLikeProjectToken(t: string): boolean {
+    if (t === anonKey) return true;
+    try {
+      const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload?.ref === projectRef || String(payload?.iss ?? '').includes(projectRef);
+    } catch { return false; }
+  }
+  if (!token || !tokenLooksLikeProjectToken(token)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-  if (token !== anonKey) {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, anonKey);
-    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-  }
-
 
   if (!CMC_API_KEY) {
     return new Response(
