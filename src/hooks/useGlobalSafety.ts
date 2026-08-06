@@ -11,7 +11,7 @@
  *  6) 일 손실 한도 초과
  *  7) 연속 손실 한도 초과
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { EligibilityResult, EligibilityState } from '@/utils/tradeEligibility';
 
 export type SafetyState = 'BLOCKED' | 'WATCH' | 'PAPER_READY' | 'LIVE_READY';
