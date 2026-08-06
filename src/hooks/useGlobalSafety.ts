@@ -116,18 +116,25 @@ export function computeGlobalSafety(eligibility?: EligibilityResult | null): Glo
 
 /**
  * React hook — localStorage 변경도 감지.
+ * 객체 아이덴티티가 아니라 값(state/reasons) 기준으로 재계산하여 무한 렌더 루프를 방지합니다.
  */
 export function useGlobalSafety(eligibility?: EligibilityResult | null): GlobalSafety {
+  const eligKey = eligibility
+    ? `${eligibility.state}|${eligibility.hardBlock}|${eligibility.passCount}/${eligibility.totalGates}|${eligibility.reasons.join('~')}`
+    : 'none';
+  const eligRef = useRef(eligibility);
+  eligRef.current = eligibility;
+
   const [safety, setSafety] = useState<GlobalSafety>(() => computeGlobalSafety(eligibility));
 
   useEffect(() => {
-    setSafety(computeGlobalSafety(eligibility));
+    setSafety(computeGlobalSafety(eligRef.current));
     const onStorage = (e: StorageEvent) => {
-      if (e.key === LIMITS_KEY) setSafety(computeGlobalSafety(eligibility));
+      if (e.key === LIMITS_KEY) setSafety(computeGlobalSafety(eligRef.current));
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [eligibility]);
+  }, [eligKey]);
 
   return safety;
 }
