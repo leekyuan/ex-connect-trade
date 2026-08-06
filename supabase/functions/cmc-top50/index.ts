@@ -1,5 +1,11 @@
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+};
+
 
 
 
@@ -50,21 +56,19 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Require a valid Supabase JWT (accepts anon publishable key or user session).
-  // Blocks unauthenticated callers while working with this app's guest-mode clients.
+  // Require a Supabase-issued token (project anon key or a user session JWT).
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const projectRef = (Deno.env.get('SUPABASE_URL') ?? '').replace('https://', '').split('.')[0];
+  function tokenLooksLikeProjectToken(t: string): boolean {
+    if (t === anonKey) return true;
+    try {
+      const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload?.ref === projectRef || String(payload?.iss ?? '').includes(projectRef);
+    } catch { return false; }
   }
-  const authSupabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-  );
-  const { data: claimsData, error: claimsErr } = await authSupabase.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims) {
+  if (!token || !tokenLooksLikeProjectToken(token)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

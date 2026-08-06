@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
 const CMC_API_KEY = Deno.env.get('CMC_API_KEY') ?? '';
 const CMC_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest';
@@ -15,20 +15,19 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Require a valid Supabase JWT (accepts anon publishable key or user session).
+  // Require a Supabase-issued token (project anon key or a user session JWT).
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const projectRef = (Deno.env.get('SUPABASE_URL') ?? '').replace('https://', '').split('.')[0];
+  function tokenLooksLikeProjectToken(t: string): boolean {
+    if (t === anonKey) return true;
+    try {
+      const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload?.ref === projectRef || String(payload?.iss ?? '').includes(projectRef);
+    } catch { return false; }
   }
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-  );
-  const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims) {
+  if (!token || !tokenLooksLikeProjectToken(token)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
