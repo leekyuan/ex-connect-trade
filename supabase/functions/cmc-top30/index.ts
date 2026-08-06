@@ -15,24 +15,25 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Require a valid Supabase JWT (accepts anon publishable key or user session).
+  // Require a Supabase-issued token (project anon key or a user session JWT).
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   if (!token) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-  );
-  const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  if (token !== anonKey) {
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, anonKey);
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   }
+
 
   if (!CMC_API_KEY) {
     return new Response(
